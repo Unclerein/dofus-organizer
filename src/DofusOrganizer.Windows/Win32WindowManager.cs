@@ -18,6 +18,16 @@ public sealed class Win32WindowManager : IWindowManager
     private const int ActivationAttempts = 3;
     private const int ActivationRetryDelayMs = 30;
 
+    /// <summary>
+    /// Délai maximal accordé à une fenêtre pour devenir réellement utilisable après
+    /// activation. Un client en plein écran exclusif se minimise quand il perd le focus :
+    /// le restaurer impose à Windows un changement de mode d'affichage, qui prend
+    /// plusieurs centaines de millisecondes. Attendre l'état réel plutôt qu'une durée
+    /// fixe évite aussi bien les clics envoyés trop tôt que l'attente inutile en fenêtré.
+    /// </summary>
+    private const int ReadyTimeoutMs = 2000;
+    private const int ReadyPollIntervalMs = 20;
+
     public IReadOnlyList<GameWindow> EnumerateGameWindows(AppSettings settings)
     {
         var results = new List<GameWindow>();
@@ -82,7 +92,7 @@ public sealed class Win32WindowManager : IWindowManager
     public bool Activate(nint handle)
     {
         if (!IsWindow(handle)) return false;
-        if (NativeMethods.GetForegroundWindow() == handle) return true;
+        if (NativeMethods.GetForegroundWindow() == handle) return WaitUntilReady(handle);
 
         if (IsIconic(handle)) ShowWindow(handle, SW_RESTORE);
 
@@ -101,18 +111,40 @@ public sealed class Win32WindowManager : IWindowManager
             {
                 BringWindowToTop(handle);
                 SetForegroundWindow(handle);
-                if (NativeMethods.GetForegroundWindow() == handle) return true;
+                if (NativeMethods.GetForegroundWindow() == handle) return WaitUntilReady(handle);
                 Thread.Sleep(ActivationRetryDelayMs);
             }
 
             SwitchToThisWindow(handle, true);
             Thread.Sleep(ActivationRetryDelayMs);
-            return NativeMethods.GetForegroundWindow() == handle;
+            return NativeMethods.GetForegroundWindow() == handle && WaitUntilReady(handle);
         }
         finally
         {
             if (attachedTarget) AttachThreadInput(ourThread, targetThread, false);
             if (attachedForeground) AttachThreadInput(ourThread, foregroundThread, false);
+        }
+    }
+
+    /// <summary>
+    /// Attend qu'une fenêtre tout juste activée soit vraiment prête à recevoir un clic :
+    /// au premier plan, non minimisée, et dotée d'une zone client de taille non nulle.
+    /// Une fenêtre en cours de restauration rapporte une zone client vide, et un clic
+    /// envoyé à cet instant serait calculé sur des dimensions fausses.
+    /// </summary>
+    private bool WaitUntilReady(nint handle)
+    {
+        var deadline = Environment.TickCount64 + ReadyTimeoutMs;
+
+        while (true)
+        {
+            bool foreground = NativeMethods.GetForegroundWindow() == handle;
+            bool visible = !IsIconic(handle) && GetClientRect(handle, out RECT rect) && rect.Width > 0 && rect.Height > 0;
+
+            if (foreground && visible) return true;
+            if (Environment.TickCount64 >= deadline) return foreground;
+
+            Thread.Sleep(ReadyPollIntervalMs);
         }
     }
 
