@@ -6,6 +6,5 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <!-- Permet de compiler les projets net8.0-windows depuis Linux/macOS. -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 </Project>

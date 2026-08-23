@@ -51,6 +51,37 @@ jobs:
           -p:DebugType=none
           --output publish
 
+      # Compiler ne prouve pas que l'application démarre : c'est au chargement du XAML
+      # et à l'initialisation de WPF que se révèlent les erreurs de configuration du
+      # runtime. Cette étape construit la fenêtre principale pour de bon et échoue si
+      # quoi que ce soit lève, chaîne d'exceptions complète dans le journal.
+      - name: Vérifier que l'application démarre
+        shell: pwsh
+        run: |
+          # PowerShell n'attend pas un exécutable en sous-système graphique : l'opérateur
+          # d'appel rendrait la main aussitôt et le code de retour serait celui du
+          # lancement, pas celui de l'application. D'où Start-Process et une attente
+          # explicite, avec la sortie redirigée vers des fichiers pour être lisible ici.
+          $process = Start-Process -FilePath "publish/DofusOrganizer.exe" `
+            -ArgumentList "--selftest" -PassThru `
+            -RedirectStandardOutput selftest-out.txt `
+            -RedirectStandardError selftest-err.txt
+
+          if (-not $process.WaitForExit(120000)) {
+            $process.Kill()
+            Write-Error "L'application ne rend pas la main : blocage au démarrage."
+            exit 1
+          }
+
+          Get-Content selftest-out.txt -ErrorAction SilentlyContinue | Write-Host
+          Get-Content selftest-err.txt -ErrorAction SilentlyContinue | Write-Host
+
+          if ($process.ExitCode -ne 0) {
+            Write-Error "L'application ne démarre pas (code $($process.ExitCode))."
+            exit 1
+          }
+          Write-Host "Démarrage vérifié."
+
       - name: Déposer l'exécutable
         uses: actions/upload-artifact@v4
         with:

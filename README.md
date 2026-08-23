@@ -72,6 +72,10 @@ macro part de travers.
 - **Les clics tombent à côté** : vérifiez que l'écran concerné n'a pas changé de mise à
   l'échelle depuis l'enregistrement, et réenregistrez la séquence au besoin.
 
+- **L'application ne s'ouvre pas du tout** : le détail de l'erreur, chaîne d'exceptions
+  et pile d'appels comprises, est écrit dans `%APPDATA%\DofusOrganizer\crash.log`. C'est
+  ce fichier qu'il faut regarder, pas le message de la boîte de dialogue.
+
 La configuration est un simple fichier JSON, lisible et modifiable à la main :
 `%APPDATA%\DofusOrganizer\profile.json`.
 
