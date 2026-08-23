@@ -27,11 +27,11 @@ public sealed class MainViewModel : ObservableObject
             if (!running) RefreshCommands();
         };
 
-        foreach (var macro in Profile.Macros) Macros.Add(new MacroEditorViewModel(macro));
-        SelectedMacro = Macros.FirstOrDefault();
-
         _service.Recorder.StepRecorded += _ => Status = $"Enregistrement : {_service.Recorder.Steps.Count} étape(s).";
 
+        // Les commandes sont créées avant toute affectation de sélection : les
+        // accesseurs de SelectedMacro et SelectedCharacter appellent RefreshCommands(),
+        // qui les parcourt. Les remplir plus tard laisserait des références nulles.
         MoveCharacterUpCommand = new RelayCommand(() => MoveCharacter(-1), () => SelectedCharacter is not null);
         MoveCharacterDownCommand = new RelayCommand(() => MoveCharacter(+1), () => SelectedCharacter is not null);
         AssignCharacterHotkeyCommand = new RelayCommand(async () => await AssignCharacterHotkeyAsync(), () => SelectedCharacter is not null);
@@ -58,6 +58,9 @@ public sealed class MainViewModel : ObservableObject
         AssignPanicHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Panic));
         SaveCommand = new RelayCommand(() => { _service.ApplyBindings(); Status = $"Profil enregistré dans {_service.ProfilePath}"; });
         RefreshCommand = new RelayCommand(_service.Refresh);
+
+        foreach (var macro in Profile.Macros) Macros.Add(new MacroEditorViewModel(macro));
+        SelectedMacro = Macros.FirstOrDefault();
 
         RefreshCharacters();
     }
@@ -389,17 +392,19 @@ public sealed class MainViewModel : ObservableObject
 
     private void RefreshCommands()
     {
-        foreach (var command in new[]
-        {
+        // Les éléments nuls sont tolérés : cette méthode est déclenchée par les
+        // accesseurs de sélection, qui peuvent être atteints avant la fin du
+        // constructeur. Planter là rendrait l'application impossible à ouvrir.
+        RelayCommand?[] commands =
+        [
             MoveCharacterUpCommand, MoveCharacterDownCommand, AssignCharacterHotkeyCommand,
             ClearCharacterHotkeyCommand, FocusCharacterCommand, ForgetCharacterCommand,
             DeleteMacroCommand, AssignMacroHotkeyCommand, ClearMacroHotkeyCommand,
             RunMacroCommand, StopMacroCommand, AddStepCommand, RemoveStepCommand,
             MoveStepUpCommand, MoveStepDownCommand, ToggleRecordingCommand,
-        })
-        {
-            command.RaiseCanExecuteChanged();
-        }
+        ];
+
+        foreach (var command in commands) command?.RaiseCanExecuteChanged();
     }
 }
 

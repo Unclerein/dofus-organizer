@@ -2,6 +2,7 @@ using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Threading;
+using DofusOrganizer.App.ViewModels;
 
 namespace DofusOrganizer.App;
 
@@ -57,9 +58,10 @@ public partial class App : Application
         try
         {
             var window = new MainWindow(profile);
+            ExerciseEditor((MainViewModel)window.DataContext);
             window.ReleaseResources();
 
-            Console.WriteLine("Contrôle de démarrage : la fenêtre principale se construit correctement.");
+            Console.WriteLine("Contrôle de démarrage : fenêtre construite et éditeur parcouru sans erreur.");
             return 0;
         }
         catch (Exception ex)
@@ -72,6 +74,28 @@ public partial class App : Application
         {
             try { File.Delete(profile); } catch (IOException) { }
         }
+    }
+
+    /// <summary>
+    /// Parcourt les opérations d'édition les plus courantes. Volontairement limité aux
+    /// commandes qui n'ouvrent aucune boîte de dialogue : une confirmation resterait
+    /// sans réponse sur un agent d'intégration et bloquerait la vérification.
+    /// </summary>
+    private static void ExerciseEditor(MainViewModel model)
+    {
+        model.AddMacroCommand.Execute(null);
+
+        foreach (var kind in Choices.StepKinds)
+        {
+            model.NewStepKind = kind.Value;
+            model.AddStepCommand.Execute(null);
+        }
+
+        model.MoveStepUpCommand.Execute(null);
+        model.MoveStepDownCommand.Execute(null);
+        model.RemoveStepCommand.Execute(null);
+        model.RefreshCommand.Execute(null);
+        model.SaveCommand.Execute(null);
     }
 
     private void OnDispatcherException(object sender, DispatcherUnhandledExceptionEventArgs e)
