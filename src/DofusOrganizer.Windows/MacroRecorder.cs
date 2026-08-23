@@ -78,6 +78,10 @@ public sealed class MacroRecorder(IWindowManager windows, Func<nint, int> slotIn
         if (!_recording || !e.IsDown || e.IsInjected) return false;
         if (VirtualKeys.IsModifierKey(e.VirtualKey)) return false;
 
+        // Seules les frappes destinées à un client Dofus font partie de la macro :
+        // ce qu'on tape dans un navigateur ou dans l'organizer lui-même n'a rien à y faire.
+        if (slotIndexOf(windows.GetForegroundWindow()) < 0) return false;
+
         TrackWindowChange();
         AddDelay();
         Add(new KeyStep { VirtualKey = e.VirtualKey, Modifiers = e.Modifiers });
@@ -90,6 +94,11 @@ public sealed class MacroRecorder(IWindowManager windows, Func<nint, int> slotIn
 
         // Le clic est rapporté à la fenêtre qui le reçoit, c'est-à-dire celle au premier plan.
         nint target = windows.GetForegroundWindow();
+
+        // Sans ce filtre, le clic sur le bouton « Arrêter l'enregistrement » de
+        // l'organizer serait lui aussi capturé et terminerait chaque macro enregistrée.
+        if (slotIndexOf(target) < 0) return false;
+
         if (!windows.TryGetClientBounds(target, out var bounds) || bounds.IsEmpty) return false;
 
         TrackWindowChange();
