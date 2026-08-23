@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>DofusOrganizer.App</RootNamespace>
+    <AssemblyName>DofusOrganizer</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>1.0.0</Version>
+    <Product>Dofus Organizer</Product>
+    <AssemblyTitle>Dofus Organizer</AssemblyTitle>
+    <!-- Le mono-fichier autonome produit par la CI n'embarque pas de satellites inutiles. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../DofusOrganizer.Core/DofusOrganizer.Core.csproj" />
+    <ProjectReference Include="../DofusOrganizer.Windows/DofusOrganizer.Windows.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Tests (logique métier)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      # La logique testable vit dans DofusOrganizer.Core, qui ne cible aucune plateforme :
+      # elle tourne donc sur un agent Linux, bien plus rapide qu'un agent Windows.
+      - name: Restaurer
+        run: dotnet restore tests/DofusOrganizer.Core.Tests/DofusOrganizer.Core.Tests.csproj
+
+      - name: Tester
+        run: dotnet test tests/DofusOrganizer.Core.Tests/DofusOrganizer.Core.Tests.csproj --configuration Release --no-restore --verbosity normal
+
+  build:
+    name: Exécutable Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Compiler la solution
+        run: dotnet build --configuration Release
+
+      # Un seul fichier, compressé, sans runtime .NET à installer sur la machine du joueur.
+      - name: Publier l'exécutable autonome
+        run: >
+          dotnet publish src/DofusOrganizer.App/DofusOrganizer.App.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          --output publish
+
+      - name: Déposer l'exécutable
+        uses: actions/upload-artifact@v4
+        with:
+          name: DofusOrganizer-win-x64
+          path: publish/DofusOrganizer.exe
+          if-no-files-found: error
+          retention-days: 30

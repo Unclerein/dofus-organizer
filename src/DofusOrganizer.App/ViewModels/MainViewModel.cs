@@ -1,0 +1,406 @@
+using System.Collections.ObjectModel;
+using System.Windows;
+using DofusOrganizer.App.Services;
+using DofusOrganizer.Core.Models;
+
+namespace DofusOrganizer.App.ViewModels;
+
+public sealed class MainViewModel : ObservableObject
+{
+    private readonly OrganizerService _service;
+    private CharacterRowViewModel? _selectedCharacter;
+    private MacroEditorViewModel? _selectedMacro;
+    private string _status = "Prêt.";
+    private bool _macroRunning;
+    private bool _recording;
+
+    public MainViewModel(OrganizerService service)
+    {
+        _service = service;
+
+        _service.RosterChanged += RefreshCharacters;
+        _service.LogMessage += message => Status = message;
+        _service.ElevationWarning += message => Status = message;
+        _service.MacroRunningChanged += running =>
+        {
+            MacroRunning = running;
+            if (!running) RefreshCommands();
+        };
+
+        foreach (var macro in Profile.Macros) Macros.Add(new MacroEditorViewModel(macro));
+        SelectedMacro = Macros.FirstOrDefault();
+
+        _service.Recorder.StepRecorded += _ => Status = $"Enregistrement : {_service.Recorder.Steps.Count} étape(s).";
+
+        MoveCharacterUpCommand = new RelayCommand(() => MoveCharacter(-1), () => SelectedCharacter is not null);
+        MoveCharacterDownCommand = new RelayCommand(() => MoveCharacter(+1), () => SelectedCharacter is not null);
+        AssignCharacterHotkeyCommand = new RelayCommand(async () => await AssignCharacterHotkeyAsync(), () => SelectedCharacter is not null);
+        ClearCharacterHotkeyCommand = new RelayCommand(ClearCharacterHotkey, () => SelectedCharacter is not null);
+        FocusCharacterCommand = new RelayCommand(FocusCharacter, () => SelectedCharacter?.IsPresent == true);
+        ForgetCharacterCommand = new RelayCommand(ForgetCharacter, () => SelectedCharacter?.IsPresent == false);
+
+        AddMacroCommand = new RelayCommand(AddMacro);
+        DeleteMacroCommand = new RelayCommand(DeleteMacro, () => SelectedMacro is not null);
+        AssignMacroHotkeyCommand = new RelayCommand(async () => await AssignMacroHotkeyAsync(), () => SelectedMacro is not null);
+        ClearMacroHotkeyCommand = new RelayCommand(ClearMacroHotkey, () => SelectedMacro is not null);
+        RunMacroCommand = new RelayCommand(async () => await RunMacroAsync(), () => SelectedMacro is not null && !MacroRunning);
+        StopMacroCommand = new RelayCommand(_service.CancelMacro, () => MacroRunning);
+
+        AddStepCommand = new RelayCommand(AddStep, () => SelectedMacro is not null);
+        RemoveStepCommand = new RelayCommand(() => SelectedMacro?.RemoveSelected(), () => SelectedMacro?.HasSelection == true);
+        MoveStepUpCommand = new RelayCommand(() => SelectedMacro?.MoveSelected(-1), () => SelectedMacro?.HasSelection == true);
+        MoveStepDownCommand = new RelayCommand(() => SelectedMacro?.MoveSelected(+1), () => SelectedMacro?.HasSelection == true);
+
+        ToggleRecordingCommand = new RelayCommand(ToggleRecording, () => SelectedMacro is not null);
+
+        AssignNextHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Next));
+        AssignPreviousHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Previous));
+        AssignPanicHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Panic));
+        SaveCommand = new RelayCommand(() => { _service.ApplyBindings(); Status = $"Profil enregistré dans {_service.ProfilePath}"; });
+        RefreshCommand = new RelayCommand(_service.Refresh);
+
+        RefreshCharacters();
+    }
+
+    public Profile Profile => _service.Profile;
+
+    public AppSettings Settings => _service.Profile.Settings;
+
+    public ObservableCollection<CharacterRowViewModel> Characters { get; } = [];
+
+    public ObservableCollection<MacroEditorViewModel> Macros { get; } = [];
+
+    private StepKind _newStepKind = StepKind.Clic;
+
+    public StepKind NewStepKind
+    {
+        get => _newStepKind;
+        set => Set(ref _newStepKind, value);
+    }
+
+    public CharacterRowViewModel? SelectedCharacter
+    {
+        get => _selectedCharacter;
+        set { if (Set(ref _selectedCharacter, value)) RefreshCommands(); }
+    }
+
+    public MacroEditorViewModel? SelectedMacro
+    {
+        get => _selectedMacro;
+        set
+        {
+            if (_selectedMacro is not null) _selectedMacro.PropertyChanged -= OnMacroChanged;
+            if (Set(ref _selectedMacro, value))
+            {
+                if (_selectedMacro is not null) _selectedMacro.PropertyChanged += OnMacroChanged;
+                RefreshCommands();
+            }
+        }
+    }
+
+    private void OnMacroChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => RefreshCommands();
+
+    public string Status
+    {
+        get => _status;
+        set => Set(ref _status, value);
+    }
+
+    public bool MacroRunning
+    {
+        get => _macroRunning;
+        private set { if (Set(ref _macroRunning, value)) RefreshCommands(); }
+    }
+
+    public bool IsRecording
+    {
+        get => _recording;
+        private set
+        {
+            if (!Set(ref _recording, value)) return;
+            Raise(nameof(RecordingLabel));
+        }
+    }
+
+    public string RecordingLabel => IsRecording ? "Arrêter l'enregistrement" : "Enregistrer";
+
+    public RelayCommand MoveCharacterUpCommand { get; }
+    public RelayCommand MoveCharacterDownCommand { get; }
+    public RelayCommand AssignCharacterHotkeyCommand { get; }
+    public RelayCommand ClearCharacterHotkeyCommand { get; }
+    public RelayCommand FocusCharacterCommand { get; }
+    public RelayCommand ForgetCharacterCommand { get; }
+    public RelayCommand AddMacroCommand { get; }
+    public RelayCommand DeleteMacroCommand { get; }
+    public RelayCommand AssignMacroHotkeyCommand { get; }
+    public RelayCommand ClearMacroHotkeyCommand { get; }
+    public RelayCommand RunMacroCommand { get; }
+    public RelayCommand StopMacroCommand { get; }
+    public RelayCommand AddStepCommand { get; }
+    public RelayCommand RemoveStepCommand { get; }
+    public RelayCommand MoveStepUpCommand { get; }
+    public RelayCommand MoveStepDownCommand { get; }
+    public RelayCommand ToggleRecordingCommand { get; }
+    public RelayCommand AssignNextHotkeyCommand { get; }
+    public RelayCommand AssignPreviousHotkeyCommand { get; }
+    public RelayCommand AssignPanicHotkeyCommand { get; }
+    public RelayCommand SaveCommand { get; }
+    public RelayCommand RefreshCommand { get; }
+
+    private string _rosterSignature = "";
+
+    private void RefreshCharacters()
+    {
+        // La détection tourne chaque seconde. Reconstruire la liste à chaque passage
+        // annulerait la saisie d'un nom en cours et ferait sauter la sélection sans
+        // arrêt : on ne la rebâtit que si sa composition a réellement changé.
+        string signature = string.Join('|', _service.Roster.Entries.Select(
+            e => $"{e.Slot.Key}:{e.Window?.Handle ?? 0}"));
+
+        if (signature == _rosterSignature)
+        {
+            Raise(nameof(PresentCount));
+            return;
+        }
+        _rosterSignature = signature;
+
+        var selected = SelectedCharacter?.Slot;
+
+        Characters.Clear();
+        for (int i = 0; i < _service.Roster.Entries.Count; i++)
+        {
+            Characters.Add(new CharacterRowViewModel(_service.Roster.Entries[i], i + 1));
+        }
+
+        SelectedCharacter = Characters.FirstOrDefault(c => ReferenceEquals(c.Slot, selected));
+        Raise(nameof(PresentCount));
+    }
+
+    public string PresentCount
+    {
+        get
+        {
+            int present = _service.Roster.Entries.Count(e => e.IsPresent);
+            return present switch
+            {
+                0 => "Aucun client Dofus détecté",
+                1 => "1 client Dofus détecté",
+                _ => $"{present} clients Dofus détectés",
+            };
+        }
+    }
+
+    private void MoveCharacter(int delta)
+    {
+        if (SelectedCharacter is null) return;
+        _service.Roster.Move(SelectedCharacter.Slot, delta, Profile.Characters);
+        _service.Refresh();
+        _service.Save();
+    }
+
+    private void FocusCharacter()
+    {
+        if (SelectedCharacter is not null) _service.FocusSlot(SelectedCharacter.Slot);
+    }
+
+    private void ForgetCharacter()
+    {
+        if (SelectedCharacter is null) return;
+        Profile.Characters.Remove(SelectedCharacter.Slot);
+        _service.Refresh();
+        _service.ApplyBindings();
+    }
+
+    private async Task AssignCharacterHotkeyAsync()
+    {
+        if (SelectedCharacter is null) return;
+        var hotkey = await CaptureAsync($"Appuyez sur la touche pour « {SelectedCharacter.DisplayName} »");
+        if (hotkey is null) return;
+        SelectedCharacter.Slot.Hotkey = hotkey;
+        SelectedCharacter.RefreshHotkey();
+        _service.ApplyBindings();
+        InvalidateCharacters();
+    }
+
+    private void ClearCharacterHotkey()
+    {
+        if (SelectedCharacter is null) return;
+        SelectedCharacter.Slot.Hotkey = null;
+        SelectedCharacter.RefreshHotkey();
+        _service.ApplyBindings();
+        InvalidateCharacters();
+    }
+
+    /// <summary>Force la reconstruction de la liste au prochain rafraîchissement.</summary>
+    private void InvalidateCharacters()
+    {
+        _rosterSignature = "";
+        RefreshCharacters();
+    }
+
+    private void AddMacro()
+    {
+        var macro = new Macro { Name = $"Macro {Profile.Macros.Count + 1}" };
+        Profile.Macros.Add(macro);
+        var editor = new MacroEditorViewModel(macro);
+        Macros.Add(editor);
+        SelectedMacro = editor;
+        _service.ApplyBindings();
+    }
+
+    private void DeleteMacro()
+    {
+        if (SelectedMacro is null) return;
+        if (MessageBox.Show($"Supprimer la macro « {SelectedMacro.Macro.Name} » ?", "Dofus Organizer",
+                MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        Profile.Macros.Remove(SelectedMacro.Macro);
+        Macros.Remove(SelectedMacro);
+        SelectedMacro = Macros.FirstOrDefault();
+        _service.ApplyBindings();
+    }
+
+    private async Task AssignMacroHotkeyAsync()
+    {
+        if (SelectedMacro is null) return;
+        var hotkey = await CaptureAsync($"Appuyez sur la touche pour « {SelectedMacro.Macro.Name} »");
+        if (hotkey is null) return;
+        SelectedMacro.Macro.Hotkey = hotkey;
+        _service.ApplyBindings();
+    }
+
+    private void ClearMacroHotkey()
+    {
+        if (SelectedMacro is null) return;
+        SelectedMacro.Macro.Hotkey = null;
+        _service.ApplyBindings();
+    }
+
+    private async Task RunMacroAsync()
+    {
+        if (SelectedMacro is null) return;
+        Status = $"Exécution de « {SelectedMacro.Macro.Name} »…";
+        await _service.RunMacroAsync(SelectedMacro.Macro);
+        Status = $"Macro « {SelectedMacro.Macro.Name} » terminée.";
+    }
+
+    private void AddStep()
+    {
+        MacroStep step = NewStepKind switch
+        {
+            StepKind.Clic => new MouseClickStep(),
+            StepKind.Deplacement => new MouseMoveStep(),
+            StepKind.Touche => new KeyStep(),
+            StepKind.Attente => new DelayStep(),
+            StepKind.Focus => new FocusStep(),
+            _ => new ForEachCharacterStep(),
+        };
+        SelectedMacro?.Add(step);
+    }
+
+    private void ToggleRecording()
+    {
+        if (SelectedMacro is null) return;
+
+        if (_service.Recorder.IsRecording)
+        {
+            var steps = _service.StopRecording();
+            IsRecording = false;
+            ApplyRecordedSteps(steps);
+            _service.Save();
+            return;
+        }
+
+        Status = "Enregistrement en cours — effectuez vos clics, puis cliquez de nouveau sur le bouton pour arrêter.";
+        IsRecording = true;
+        _service.StartRecording();
+    }
+
+    private void ApplyRecordedSteps(IReadOnlyList<MacroStep> steps)
+    {
+        if (SelectedMacro is null) return;
+        if (steps.Count == 0) { Status = "Aucune action capturée."; return; }
+
+        // Si la macro contient déjà une boucle sur les personnages, les étapes
+        // enregistrées sur un seul personnage y sont déposées : c'est la façon
+        // naturelle d'écrire un soin d'équipe, une fois pour tous.
+        var loop = SelectedMacro.FindLoop();
+        if (loop is not null
+            && MessageBox.Show(
+                $"{steps.Count} action(s) capturée(s). Les placer dans la boucle « pour chaque personnage » ?",
+                "Dofus Organizer", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+        {
+            loop.Steps.Clear();
+            foreach (var step in steps) loop.Steps.Add(step);
+            SelectedMacro.SelectedStep = loop;
+            Status = $"{steps.Count} action(s) placée(s) dans la boucle.";
+            return;
+        }
+
+        SelectedMacro.Replace(steps);
+        Status = $"{steps.Count} action(s) enregistrée(s).";
+    }
+
+    private enum SettingHotkey { Next, Previous, Panic }
+
+    private async Task AssignSettingHotkeyAsync(SettingHotkey which)
+    {
+        string label = which switch
+        {
+            SettingHotkey.Next => "passer au personnage suivant",
+            SettingHotkey.Previous => "revenir au personnage précédent",
+            _ => "l'arrêt d'urgence",
+        };
+
+        var hotkey = await CaptureAsync($"Appuyez sur la touche pour {label}");
+        if (hotkey is null) return;
+
+        switch (which)
+        {
+            case SettingHotkey.Next: Settings.NextCharacterHotkey = hotkey; break;
+            case SettingHotkey.Previous: Settings.PreviousCharacterHotkey = hotkey; break;
+            default: Settings.PanicHotkey = hotkey; break;
+        }
+
+        _service.ApplyBindings();
+    }
+
+    /// <summary>Attend la prochaine frappe pour en faire un raccourci. Échap annule.</summary>
+    private async Task<Hotkey?> CaptureAsync(string prompt)
+    {
+        Status = prompt + " — Échap pour annuler.";
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var hotkey = await _service.CaptureHotkeyAsync(timeout.Token);
+            Status = $"Raccourci assigné : {hotkey}";
+            return hotkey;
+        }
+        catch (OperationCanceledException)
+        {
+            _service.CancelHotkeyCapture();
+            Status = "Assignation annulée.";
+            return null;
+        }
+    }
+
+    private void RefreshCommands()
+    {
+        foreach (var command in new[]
+        {
+            MoveCharacterUpCommand, MoveCharacterDownCommand, AssignCharacterHotkeyCommand,
+            ClearCharacterHotkeyCommand, FocusCharacterCommand, ForgetCharacterCommand,
+            DeleteMacroCommand, AssignMacroHotkeyCommand, ClearMacroHotkeyCommand,
+            RunMacroCommand, StopMacroCommand, AddStepCommand, RemoveStepCommand,
+            MoveStepUpCommand, MoveStepDownCommand, ToggleRecordingCommand,
+        })
+        {
+            command.RaiseCanExecuteChanged();
+        }
+    }
+}
+
+public enum StepKind { Clic, Deplacement, Touche, Attente, Focus, PourChaquePersonnage }

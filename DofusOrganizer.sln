@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{1A30C962-E52E-4B68-BB43-5EC64304C81E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DofusOrganizer.Core", "src\DofusOrganizer.Core\DofusOrganizer.Core.csproj", "{45784E44-54DB-472B-9A11-B0BFD4468224}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DofusOrganizer.Windows", "src\DofusOrganizer.Windows\DofusOrganizer.Windows.csproj", "{02AC187C-035B-4F1D-930B-B2F18BA8F06E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DofusOrganizer.App", "src\DofusOrganizer.App\DofusOrganizer.App.csproj", "{FA0CCDC8-092D-4BD0-9BD2-38819C392714}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{2FDA5BF2-4BB6-42B9-A9F4-8236D93DD9D4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DofusOrganizer.Core.Tests", "tests\DofusOrganizer.Core.Tests\DofusOrganizer.Core.Tests.csproj", "{6B5D65B4-68CA-4A2C-B48A-3C0C1DBC3011}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{45784E44-54DB-472B-9A11-B0BFD4468224}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45784E44-54DB-472B-9A11-B0BFD4468224}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45784E44-54DB-472B-9A11-B0BFD4468224}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45784E44-54DB-472B-9A11-B0BFD4468224}.Release|Any CPU.Build.0 = Release|Any CPU
+		{02AC187C-035B-4F1D-930B-B2F18BA8F06E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{02AC187C-035B-4F1D-930B-B2F18BA8F06E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{02AC187C-035B-4F1D-930B-B2F18BA8F06E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{02AC187C-035B-4F1D-930B-B2F18BA8F06E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FA0CCDC8-092D-4BD0-9BD2-38819C392714}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FA0CCDC8-092D-4BD0-9BD2-38819C392714}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FA0CCDC8-092D-4BD0-9BD2-38819C392714}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FA0CCDC8-092D-4BD0-9BD2-38819C392714}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6B5D65B4-68CA-4A2C-B48A-3C0C1DBC3011}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B5D65B4-68CA-4A2C-B48A-3C0C1DBC3011}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B5D65B4-68CA-4A2C-B48A-3C0C1DBC3011}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B5D65B4-68CA-4A2C-B48A-3C0C1DBC3011}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{45784E44-54DB-472B-9A11-B0BFD4468224} = {1A30C962-E52E-4B68-BB43-5EC64304C81E}
+		{02AC187C-035B-4F1D-930B-B2F18BA8F06E} = {1A30C962-E52E-4B68-BB43-5EC64304C81E}
+		{FA0CCDC8-092D-4BD0-9BD2-38819C392714} = {1A30C962-E52E-4B68-BB43-5EC64304C81E}
+		{6B5D65B4-68CA-4A2C-B48A-3C0C1DBC3011} = {2FDA5BF2-4BB6-42B9-A9F4-8236D93DD9D4}
+	EndGlobalSection
+EndGlobal
