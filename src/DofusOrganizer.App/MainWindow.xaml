@@ -250,7 +250,8 @@
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
               </Grid.RowDefinitions>
 
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Personnage suivant" VerticalAlignment="Center" Margin="0,4" />
@@ -267,9 +268,15 @@
               <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold"
                          Text="{Binding Settings.PanicHotkey, TargetNullValue=(aucun)}" />
               <Button Grid.Row="2" Grid.Column="2" Content="Assigner" Command="{Binding AssignPanicHotkeyCommand}" Margin="0,2" />
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="Démarrer / arrêter l'enregistrement" VerticalAlignment="Center" Margin="0,4" />
+              <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold"
+                         Text="{Binding Settings.ToggleRecordingHotkey, TargetNullValue=(aucun)}" />
+              <Button Grid.Row="3" Grid.Column="2" Content="Assigner" Command="{Binding AssignToggleRecordingHotkeyCommand}" Margin="0,2" />
             </Grid>
             <TextBlock Style="{StaticResource Hint}">
-              L'arrêt d'urgence reste actif même quand Dofus n'a pas le focus : c'est le moyen de reprendre la main sur une macro.
+              L'arrêt d'urgence et la bascule d'enregistrement restent actifs même quand Dofus n'a pas le focus, et même
+              pendant une capture : ce sont les seuls moyens de reprendre la main sans revenir dans cette fenêtre.
             </TextBlock>
 
             <TextBlock Text="Comportement" Style="{StaticResource SectionHeader}" />
@@ -279,6 +286,8 @@
                       IsChecked="{Binding Settings.SwallowBoundKeys}" Margin="0,3" />
             <CheckBox Content="Envoyer les touches avec leur code de balayage (à décocher si le jeu ignore les frappes)"
                       IsChecked="{Binding Settings.UseScanCodes}" Margin="0,3" />
+            <CheckBox Content="Émettre un bip au début et à la fin d'un enregistrement"
+                      IsChecked="{Binding Settings.RecordingFeedbackSound}" Margin="0,3" />
 
             <TextBlock Text="Temporisations" Style="{StaticResource SectionHeader}" />
             <StackPanel Orientation="Horizontal" Margin="0,3">

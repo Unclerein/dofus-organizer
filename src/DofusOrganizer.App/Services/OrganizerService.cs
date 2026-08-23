@@ -36,7 +36,7 @@ public sealed class OrganizerService : IDisposable, ILogSink
         _dispatcher = new HotkeyDispatcher(_windows.GetForegroundWindow, IsGameWindow);
         _dispatcher.ActionTriggered += OnHotkey;
 
-        Recorder = new MacroRecorder(_windows, SlotIndexOf);
+        Recorder = new MacroRecorder(_windows, SlotIndexOf, _dispatcher.IsRecordingToggle);
 
         // Une seconde suffit : ouvrir un client prend plus de temps que ça, et un
         // intervalle plus court ferait tourner une énumération de fenêtres pour rien.
@@ -57,6 +57,16 @@ public sealed class OrganizerService : IDisposable, ILogSink
 
     public event Action? RosterChanged;
     public event Action<bool>? MacroRunningChanged;
+
+    /// <summary>
+    /// Signale un changement d'état de la capture. Indispensable depuis que le raccourci
+    /// clavier peut l'arrêter : le bouton et la barre d'état doivent suivre sans que
+    /// l'utilisateur soit repassé par la fenêtre.
+    /// </summary>
+    public event Action<bool>? RecordingChanged;
+
+    /// <summary>Levé à la fin d'une capture, avec les étapes obtenues.</summary>
+    public event Action<IReadOnlyList<MacroStep>>? RecordingFinished;
     public event Action<string>? LogMessage;
 
     /// <summary>Signalé quand un client Dofus tourne avec plus de privilèges que l'organizer.</summary>
@@ -132,22 +142,63 @@ public sealed class OrganizerService : IDisposable, ILogSink
 
     public string ProfilePath => _store.Path;
 
+    public bool IsRecording => Recorder.IsRecording;
+
     /// <summary>
     /// Démarre une capture de macro. Les raccourcis sont mis en sommeil le temps de
     /// l'enregistrement, pour que les touches frappées finissent dans la macro plutôt
-    /// que de déclencher une autre macro.
+    /// que de déclencher une autre macro — la bascule d'enregistrement et l'arrêt
+    /// d'urgence restant seuls actifs.
     /// </summary>
     public void StartRecording()
     {
+        if (Recorder.IsRecording) return;
+
         _dispatcher.Enabled = false;
         Recorder.Start();
+        Notify(recording: true);
     }
 
-    public IReadOnlyList<MacroStep> StopRecording()
+    public void StopRecording()
     {
+        if (!Recorder.IsRecording) return;
+
         var steps = Recorder.Stop();
         _dispatcher.Enabled = true;
-        return steps;
+        Notify(recording: false);
+        _uiDispatcher.BeginInvoke(() => RecordingFinished?.Invoke(steps));
+    }
+
+    public void ToggleRecording()
+    {
+        if (Recorder.IsRecording) StopRecording();
+        else StartRecording();
+    }
+
+    private void Notify(bool recording)
+    {
+        if (Profile.Settings.RecordingFeedbackSound) PlayFeedback(recording);
+        _uiDispatcher.BeginInvoke(() => RecordingChanged?.Invoke(recording));
+    }
+
+    /// <summary>
+    /// Un bip au démarrage, deux à l'arrêt. Déclenchée depuis le jeu en plein écran, la
+    /// capture ne donne aucun signe visible : le son est le seul retour possible.
+    /// </summary>
+    private static void PlayFeedback(bool recording)
+    {
+        try
+        {
+            System.Media.SystemSounds.Beep.Play();
+            if (recording) return;
+
+            Task.Delay(140).ContinueWith(_ => System.Media.SystemSounds.Beep.Play(),
+                TaskScheduler.Default);
+        }
+        catch
+        {
+            // Une machine sans périphérique audio ne doit pas empêcher d'enregistrer.
+        }
     }
 
     public Task<Hotkey> CaptureHotkeyAsync(CancellationToken cancellationToken)
@@ -211,6 +262,7 @@ public sealed class OrganizerService : IDisposable, ILogSink
                 case HotkeyActionKind.FocusPrevious: FocusPrevious(); break;
                 case HotkeyActionKind.FocusSlot when action.Slot is not null: FocusSlot(action.Slot); break;
                 case HotkeyActionKind.Panic: CancelMacro(); break;
+                case HotkeyActionKind.ToggleRecording: ToggleRecording(); break;
                 case HotkeyActionKind.RunMacro when action.Macro is not null:
                     _ = RunMacroAsync(action.Macro);
                     break;

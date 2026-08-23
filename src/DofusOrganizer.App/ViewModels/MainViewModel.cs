@@ -27,7 +27,13 @@ public sealed class MainViewModel : ObservableObject
             if (!running) RefreshCommands();
         };
 
-        _service.Recorder.StepRecorded += _ => Status = $"Enregistrement : {_service.Recorder.Steps.Count} étape(s).";
+        _service.RecordingChanged += OnRecordingChanged;
+        _service.RecordingFinished += OnRecordingFinished;
+
+        // La description de l'étape, et non un simple compteur : l'utilisateur voit en
+        // direct la position capturée et repère immédiatement une valeur aberrante.
+        _service.Recorder.StepRecorded += step =>
+            Status = $"Capturé ({_service.Recorder.Steps.Count}) : {step.Description}";
 
         // Les commandes sont créées avant toute affectation de sélection : les
         // accesseurs de SelectedMacro et SelectedCharacter appellent RefreshCommands(),
@@ -56,6 +62,7 @@ public sealed class MainViewModel : ObservableObject
         AssignNextHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Next));
         AssignPreviousHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Previous));
         AssignPanicHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Panic));
+        AssignToggleRecordingHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.ToggleRecording));
         SaveCommand = new RelayCommand(() => { _service.ApplyBindings(); Status = $"Profil enregistré dans {_service.ProfilePath}"; });
         RefreshCommand = new RelayCommand(_service.Refresh);
 
@@ -147,6 +154,7 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand AssignNextHotkeyCommand { get; }
     public RelayCommand AssignPreviousHotkeyCommand { get; }
     public RelayCommand AssignPanicHotkeyCommand { get; }
+    public RelayCommand AssignToggleRecordingHotkeyCommand { get; }
     public RelayCommand SaveCommand { get; }
     public RelayCommand RefreshCommand { get; }
 
@@ -306,20 +314,34 @@ public sealed class MainViewModel : ObservableObject
 
     private void ToggleRecording()
     {
-        if (SelectedMacro is null) return;
-
-        if (_service.Recorder.IsRecording)
+        // Le raccourci clavier peut être pressé alors qu'aucune macro n'est sélectionnée :
+        // prendre la première est plus utile que d'ignorer la demande, l'utilisateur étant
+        // alors dans le jeu et hors de portée de la barre d'état.
+        SelectedMacro ??= Macros.FirstOrDefault();
+        if (SelectedMacro is null)
         {
-            var steps = _service.StopRecording();
-            IsRecording = false;
-            ApplyRecordedSteps(steps);
-            _service.Save();
+            Status = "Créez d'abord une macro avant d'enregistrer.";
             return;
         }
 
-        Status = "Enregistrement en cours — effectuez vos clics, puis cliquez de nouveau sur le bouton pour arrêter.";
-        IsRecording = true;
-        _service.StartRecording();
+        _service.ToggleRecording();
+    }
+
+    private void OnRecordingChanged(bool recording)
+    {
+        IsRecording = recording;
+        if (recording)
+        {
+            Status = _service.Profile.Settings.ToggleRecordingHotkey is { IsEmpty: false } hotkey
+                ? $"Enregistrement en cours — {hotkey} pour arrêter."
+                : "Enregistrement en cours — cliquez de nouveau sur le bouton pour arrêter.";
+        }
+    }
+
+    private void OnRecordingFinished(IReadOnlyList<MacroStep> steps)
+    {
+        ApplyRecordedSteps(steps);
+        _service.Save();
     }
 
     private void ApplyRecordedSteps(IReadOnlyList<MacroStep> steps)
@@ -329,17 +351,16 @@ public sealed class MainViewModel : ObservableObject
 
         // Si la macro contient déjà une boucle sur les personnages, les étapes
         // enregistrées sur un seul personnage y sont déposées : c'est la façon
-        // naturelle d'écrire un soin d'équipe, une fois pour tous.
+        // naturelle d'écrire un soin d'équipe, une fois pour tous. Aucune confirmation
+        // n'est demandée — la capture s'arrête souvent au clavier depuis le jeu en plein
+        // écran, où une boîte de dialogue serait au mieux gênante.
         var loop = SelectedMacro.FindLoop();
-        if (loop is not null
-            && MessageBox.Show(
-                $"{steps.Count} action(s) capturée(s). Les placer dans la boucle « pour chaque personnage » ?",
-                "Dofus Organizer", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+        if (loop is not null)
         {
             loop.Steps.Clear();
             foreach (var step in steps) loop.Steps.Add(step);
             SelectedMacro.SelectedStep = loop;
-            Status = $"{steps.Count} action(s) placée(s) dans la boucle.";
+            Status = $"{steps.Count} action(s) placée(s) dans la boucle « pour chaque personnage ».";
             return;
         }
 
@@ -347,7 +368,7 @@ public sealed class MainViewModel : ObservableObject
         Status = $"{steps.Count} action(s) enregistrée(s).";
     }
 
-    private enum SettingHotkey { Next, Previous, Panic }
+    private enum SettingHotkey { Next, Previous, Panic, ToggleRecording }
 
     private async Task AssignSettingHotkeyAsync(SettingHotkey which)
     {
@@ -355,6 +376,7 @@ public sealed class MainViewModel : ObservableObject
         {
             SettingHotkey.Next => "passer au personnage suivant",
             SettingHotkey.Previous => "revenir au personnage précédent",
+            SettingHotkey.ToggleRecording => "démarrer et arrêter l'enregistrement",
             _ => "l'arrêt d'urgence",
         };
 
@@ -365,6 +387,7 @@ public sealed class MainViewModel : ObservableObject
         {
             case SettingHotkey.Next: Settings.NextCharacterHotkey = hotkey; break;
             case SettingHotkey.Previous: Settings.PreviousCharacterHotkey = hotkey; break;
+            case SettingHotkey.ToggleRecording: Settings.ToggleRecordingHotkey = hotkey; break;
             default: Settings.PanicHotkey = hotkey; break;
         }
 

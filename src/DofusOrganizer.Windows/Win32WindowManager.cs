@@ -28,6 +28,14 @@ public sealed class Win32WindowManager : IWindowManager
     private const int ReadyTimeoutMs = 2000;
     private const int ReadyPollIntervalMs = 20;
 
+    /// <summary>
+    /// Identité de l'organizer, pour qu'il s'écarte de sa propre liste de personnages.
+    /// Calculée une fois : elle ne change pas au cours de la vie du processus.
+    /// </summary>
+    private static readonly SelfIdentity Self = new(
+        Environment.ProcessId,
+        Path.GetFileNameWithoutExtension(Environment.ProcessPath) ?? "");
+
     public IReadOnlyList<GameWindow> EnumerateGameWindows(AppSettings settings)
     {
         var results = new List<GameWindow>();
@@ -49,14 +57,10 @@ public sealed class Win32WindowManager : IWindowManager
                 processNames[pid] = processName;
             }
 
-            if (!MatchesProcess(processName, settings.ProcessNames)) return true;
+            if (!GameWindowFilter.IsGameProcess(processName, (int)pid, Self, settings)) return true;
 
             string className = GetClassNameOf(hWnd);
-            if (!string.IsNullOrWhiteSpace(settings.WindowClassFilter)
-                && !className.Contains(settings.WindowClassFilter, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            if (!GameWindowFilter.MatchesWindowClass(className, settings)) return true;
 
             results.Add(new GameWindow(hWnd, (int)pid, title, processName, className)
             {
@@ -68,18 +72,24 @@ public sealed class Win32WindowManager : IWindowManager
         return results;
     }
 
-    private static bool MatchesProcess(string processName, List<string> allowed)
-    {
-        if (string.IsNullOrEmpty(processName)) return false;
-        foreach (string candidate in allowed)
-        {
-            if (string.IsNullOrWhiteSpace(candidate)) continue;
-            if (processName.Contains(candidate.Trim(), StringComparison.OrdinalIgnoreCase)) return true;
-        }
-        return false;
-    }
-
     public nint GetForegroundWindow() => NativeMethods.GetForegroundWindow();
+
+    /// <summary>
+    /// Fenêtre de premier niveau située sous un point de l'écran. C'est elle qui reçoit
+    /// le clic, et pas nécessairement celle au premier plan : un hook bas niveau se
+    /// déclenche avant que le focus ne change, donc cliquer sur un client pour l'activer
+    /// se produit alors qu'un autre est encore au premier plan.
+    /// </summary>
+    public nint WindowUnder(ScreenPoint point)
+    {
+        nint hit = WindowFromPoint(new POINT { X = point.X, Y = point.Y });
+        if (hit == 0) return 0;
+
+        // WindowFromPoint rend le contrôle enfant le plus profond ; on remonte à la
+        // fenêtre principale du client pour que les coordonnées soient relatives à elle.
+        nint root = GetAncestor(hit, GA_ROOT);
+        return root != 0 ? root : hit;
+    }
 
     public bool IsWindow(nint handle) => handle != 0 && NativeMethods.IsWindow(handle);
 

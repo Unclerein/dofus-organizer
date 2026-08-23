@@ -42,6 +42,19 @@ public sealed class FakeWindowManager : IWindowManager
 
     public nint GetForegroundWindow() => Foreground;
 
+    public nint WindowUnder(ScreenPoint point)
+    {
+        foreach (var (handle, bounds) in _bounds)
+        {
+            if (point.X >= bounds.Origin.X && point.X < bounds.Origin.X + bounds.Width
+                && point.Y >= bounds.Origin.Y && point.Y < bounds.Origin.Y + bounds.Height)
+            {
+                return handle;
+            }
+        }
+        return 0;
+    }
+
     public bool Activate(nint handle)
     {
         bool ok = !ActivationFailures.Contains(handle);

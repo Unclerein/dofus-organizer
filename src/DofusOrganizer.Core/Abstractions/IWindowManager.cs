@@ -14,6 +14,12 @@ public interface IWindowManager
 
     nint GetForegroundWindow();
 
+    /// <summary>
+    /// Fenêtre de premier niveau sous un point de l'écran, ou 0. Ce n'est pas toujours
+    /// celle au premier plan : un hook de souris se déclenche avant le changement de focus.
+    /// </summary>
+    nint WindowUnder(ScreenPoint point);
+
     /// <summary>Met la fenêtre au premier plan. Renvoie faux si Windows a refusé le changement.</summary>
     bool Activate(nint handle);
 

@@ -42,12 +42,22 @@ mal le passage d'une fenêtre à l'autre et les changements sont lents ou refus�
 L'idée : enregistrer la séquence sur **un seul** personnage, et laisser la boucle la
 rejouer sur tous.
 
-1. Onglet **Macros**, sélectionnez « Soin de l'équipe » (ou créez-en une et ajoutez une
+1. Dans **Réglages**, assignez une touche à « Démarrer / arrêter l'enregistrement ». Elle
+   reste active depuis le jeu, y compris pendant une capture : vous n'aurez pas à revenir
+   dans cette fenêtre, ce qui polluerait l'enregistrement.
+2. Onglet **Macros**, sélectionnez « Soin de l'équipe » (ou créez-en une et ajoutez une
    étape « Pour chaque personnage »).
-2. Cliquez **Enregistrer**, basculez sur un personnage, cliquez sur le sort de soin puis
-   sur la cible, revenez et cliquez **Arrêter l'enregistrement**.
-3. L'application propose de placer les actions capturées dans la boucle : acceptez.
-4. Cliquez **Assigner** pour lui donner une touche, puis **Tester**.
+3. Basculez sur un personnage, appuyez sur la touche d'enregistrement (un bip confirme),
+   cliquez sur le sort de soin puis sur la cible, et appuyez de nouveau pour arrêter
+   (deux bips).
+4. Les actions capturées sont placées d'office dans la boucle « pour chaque personnage »
+   si la macro en contient une.
+5. Cliquez **Assigner** pour donner une touche à la macro, puis **Tester**.
+
+Pendant la capture, la barre d'état affiche chaque action au fur et à mesure
+(« Clic gauche à 42,3 % / 91,2 % ») : de quoi repérer tout de suite une position aberrante.
+Seuls les clics faits dans un client Dofus sont retenus — l'organizer lui-même et les autres
+applications sont ignorés.
 
 Les positions sont enregistrées en fraction de la fenêtre et non en pixels de l'écran :
 la macro reste juste si vous déplacez ou redimensionnez vos clients ensuite.

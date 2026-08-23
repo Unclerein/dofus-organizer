@@ -150,16 +150,21 @@ public sealed class HotkeyDispatcher : IDisposable
 
     private bool Dispatch(int virtualKey, KeyModifiers modifiers)
     {
-        if (!Enabled) return false;
-
         var action = _bindings.Resolve(virtualKey, modifiers);
         if (action is null) return false;
 
+        // Deux raccourcis doivent franchir tous les garde-fous, sans quoi ils ne
+        // rempliraient pas leur office : l'arrêt d'urgence est le seul moyen de reprendre
+        // la main sur une macro partie de travers, et la bascule d'enregistrement doit
+        // pouvoir *arrêter* une capture — or les raccourcis sont justement mis en sommeil
+        // pendant celle-ci, et le jeu n'a pas forcément le focus au moment où on l'utilise.
+        bool alwaysActive = action.Kind is HotkeyActionKind.Panic or HotkeyActionKind.ToggleRecording;
+
+        if (!Enabled && !alwaysActive) return false;
+
         var settings = _settings;
 
-        // L'arrêt d'urgence doit rester joignable même quand le jeu n'a pas le focus :
-        // c'est le seul moyen de reprendre la main sur une macro partie de travers.
-        if (action.Kind != HotkeyActionKind.Panic
+        if (!alwaysActive
             && settings.HotkeysOnlyWhenGameFocused
             && !_isGameWindow(_getForegroundWindow()))
         {
@@ -167,8 +172,16 @@ public sealed class HotkeyDispatcher : IDisposable
         }
 
         _queue.Add(action);
-        return settings.SwallowBoundKeys || action.Kind == HotkeyActionKind.Panic;
+        return settings.SwallowBoundKeys || alwaysActive;
     }
+
+    /// <summary>
+    /// Vrai si cette combinaison est celle qui pilote l'enregistrement. L'enregistreur
+    /// s'en sert pour ne pas la capturer : ses hooks sont installés après ceux-ci, donc
+    /// appelés avant, et la touche d'arrêt finirait comme dernière étape de chaque macro.
+    /// </summary>
+    public bool IsRecordingToggle(int virtualKey, KeyModifiers modifiers)
+        => _settings.ToggleRecordingHotkey?.Matches(virtualKey, modifiers) == true;
 
     private void ProcessQueue()
     {

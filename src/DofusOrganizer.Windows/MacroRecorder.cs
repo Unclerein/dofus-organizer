@@ -16,7 +16,13 @@ namespace DofusOrganizer.Windows;
 /// <param name="slotIndexOf">
 /// Position du personnage occupant une fenêtre donnée, ou -1 si la fenêtre n'est pas un client suivi.
 /// </param>
-public sealed class MacroRecorder(IWindowManager windows, Func<nint, int> slotIndexOf) : IDisposable
+/// <param name="isRecordingToggle">
+/// Reconnaît la combinaison qui pilote l'enregistrement, pour ne pas la capturer.
+/// </param>
+public sealed class MacroRecorder(
+    IWindowManager windows,
+    Func<nint, int> slotIndexOf,
+    Func<int, KeyModifiers, bool> isRecordingToggle) : IDisposable
 {
     private readonly KeyboardHook _keyboard = new();
     private readonly MouseHook _mouse = new();
@@ -78,6 +84,9 @@ public sealed class MacroRecorder(IWindowManager windows, Func<nint, int> slotIn
         if (!_recording || !e.IsDown || e.IsInjected) return false;
         if (VirtualKeys.IsModifierKey(e.VirtualKey)) return false;
 
+        // La touche qui arrête la capture ne doit pas en faire partie.
+        if (isRecordingToggle(e.VirtualKey, e.Modifiers)) return false;
+
         // Seules les frappes destinées à un client Dofus font partie de la macro :
         // ce qu'on tape dans un navigateur ou dans l'organizer lui-même n'a rien à y faire.
         if (slotIndexOf(windows.GetForegroundWindow()) < 0) return false;
@@ -92,11 +101,14 @@ public sealed class MacroRecorder(IWindowManager windows, Func<nint, int> slotIn
     {
         if (!_recording || !e.IsDown || e.IsInjected || e.Button is null) return false;
 
-        // Le clic est rapporté à la fenêtre qui le reçoit, c'est-à-dire celle au premier plan.
-        nint target = windows.GetForegroundWindow();
+        // Le clic est rapporté à la fenêtre réellement située sous le curseur, et non à
+        // celle au premier plan : le hook se déclenche avant que le focus ne change, donc
+        // cliquer sur un client pour l'activer rapporterait le clic aux dimensions du
+        // client précédent.
+        nint target = windows.WindowUnder(e.Point);
 
-        // Sans ce filtre, le clic sur le bouton « Arrêter l'enregistrement » de
-        // l'organizer serait lui aussi capturé et terminerait chaque macro enregistrée.
+        // Et seules les fenêtres suivies comptent : un clic dans l'organizer ou ailleurs
+        // n'a rien à faire dans une macro.
         if (slotIndexOf(target) < 0) return false;
 
         if (!windows.TryGetClientBounds(target, out var bounds) || bounds.IsEmpty) return false;

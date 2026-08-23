@@ -154,6 +154,44 @@ public class HotkeyBindingsTests
     }
 
     [Fact]
+    public void La_bascule_d_enregistrement_est_resolue_et_signalee_en_conflit()
+    {
+        var profile = new Profile();
+        profile.Settings.PanicHotkey = null;
+        profile.Settings.ToggleRecordingHotkey = new Hotkey(VirtualKeys.F9, KeyModifiers.Control);
+
+        var table = HotkeyBindings.Build(profile);
+        Assert.Equal(HotkeyActionKind.ToggleRecording,
+            table.Resolve(VirtualKeys.F9, KeyModifiers.Control)!.Kind);
+
+        // Elle doit aussi entrer dans la détection de doublons, au même titre que les autres.
+        profile.Settings.NextCharacterHotkey = new Hotkey(VirtualKeys.F9, KeyModifiers.Control);
+        Assert.Single(HotkeyBindings.FindConflicts(profile));
+    }
+
+    [Fact]
+    public void Le_raccourci_d_enregistrement_survit_a_un_aller_retour_sur_disque()
+    {
+        var directory = Directory.CreateTempSubdirectory("dofus-organizer-toggle").FullName;
+        try
+        {
+            var store = new ProfileStore(Path.Combine(directory, "profile.json"));
+            var profile = new Profile();
+            profile.Settings.ToggleRecordingHotkey = new Hotkey(VirtualKeys.F9, KeyModifiers.Alt);
+            profile.Settings.RecordingFeedbackSound = false;
+            store.Save(profile);
+
+            var loaded = store.Load();
+            Assert.Equal(new Hotkey(VirtualKeys.F9, KeyModifiers.Alt), loaded.Settings.ToggleRecordingHotkey);
+            Assert.False(loaded.Settings.RecordingFeedbackSound);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Les_raccourcis_assignes_deux_fois_sont_signales()
     {
         var profile = new Profile();

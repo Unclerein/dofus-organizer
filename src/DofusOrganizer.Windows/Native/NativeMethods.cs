@@ -134,6 +134,9 @@ internal static class NativeMethods
 
     internal const uint MAPVK_VK_TO_VSC = 0;
 
+    /// <summary>Remonte à la fenêtre de premier niveau d'une hiérarchie de contrôles.</summary>
+    internal const uint GA_ROOT = 2;
+
     internal const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
 
     [DllImport("user32.dll")]
@@ -162,6 +165,12 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern nint GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    internal static extern nint WindowFromPoint(POINT point);
+
+    [DllImport("user32.dll")]
+    internal static extern nint GetAncestor(nint hWnd, uint flags);
 
     [DllImport("user32.dll")]
     internal static extern bool SetForegroundWindow(nint hWnd);

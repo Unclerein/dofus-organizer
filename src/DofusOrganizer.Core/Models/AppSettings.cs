@@ -7,6 +7,8 @@ public sealed class AppSettings : NotifyBase
     private Hotkey? _nextCharacterHotkey;
     private Hotkey? _previousCharacterHotkey;
     private Hotkey? _panicHotkey = new(VirtualKeys.Pause);
+    private Hotkey? _toggleRecordingHotkey;
+    private bool _recordingFeedbackSound = true;
     private bool _hotkeysOnlyWhenGameFocused = true;
     private bool _swallowBoundKeys = true;
     private int _focusSettleDelayMs = 120;
@@ -53,6 +55,27 @@ public sealed class AppSettings : NotifyBase
     {
         get => _panicHotkey;
         set => Set(ref _panicHotkey, value);
+    }
+
+    /// <summary>
+    /// Démarre et arrête l'enregistrement d'une macro sans repasser par la fenêtre de
+    /// l'organizer. Sans valeur par défaut : en imposer une risquerait de voler une
+    /// touche utilisée en jeu.
+    /// </summary>
+    public Hotkey? ToggleRecordingHotkey
+    {
+        get => _toggleRecordingHotkey;
+        set => Set(ref _toggleRecordingHotkey, value);
+    }
+
+    /// <summary>
+    /// Émettre un bip au début et à la fin d'un enregistrement. En plein écran, c'est le
+    /// seul moyen de savoir que la capture tourne.
+    /// </summary>
+    public bool RecordingFeedbackSound
+    {
+        get => _recordingFeedbackSound;
+        set => Set(ref _recordingFeedbackSound, value);
     }
 
     /// <summary>N'activer les raccourcis que lorsqu'une fenêtre Dofus est au premier plan.</summary>
