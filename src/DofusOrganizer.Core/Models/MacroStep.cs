@@ -28,6 +28,8 @@ public enum FocusTarget
 [JsonDerivedType(typeof(MouseMoveStep), "move")]
 [JsonDerivedType(typeof(KeyStep), "key")]
 [JsonDerivedType(typeof(DelayStep), "delay")]
+[JsonDerivedType(typeof(WaitForImageStep), "waitimage")]
+[JsonDerivedType(typeof(ScrollStep), "scroll")]
 public abstract class MacroStep : NotifyBase
 {
     /// <summary>Libellé affiché dans la liste d'étapes de l'éditeur.</summary>
@@ -139,6 +141,18 @@ public sealed class MouseClickStep : PointerStep
 {
     private MouseButton _button = MouseButton.Left;
     private int _clicks = 1;
+    private ImageAnchor? _anchor;
+
+    /// <summary>
+    /// Image à retrouver pour situer le clic. Quand elle est renseignée, la position n'est
+    /// plus qu'un point de départ : c'est ce qui permet à un clic de suivre une liste qui a
+    /// défilé ou un panneau qui s'est ouvert ailleurs. Null pour un clic à position fixe.
+    /// </summary>
+    public ImageAnchor? Anchor
+    {
+        get => _anchor;
+        set { if (Set(ref _anchor, value)) RaiseDescription(); }
+    }
 
     public MouseButton Button
     {
@@ -163,7 +177,8 @@ public sealed class MouseClickStep : PointerStep
                 _ => "Clic gauche",
             };
             string repeat = Clicks > 1 ? $" ×{Clicks}" : "";
-            return $"{button}{repeat} à {PositionText}";
+            string how = Anchor is { IsEmpty: false } ? "sur l'image repérée près de " : "à ";
+            return $"{button}{repeat} {how}{PositionText}";
         }
     }
 }
@@ -223,4 +238,67 @@ public sealed class DelayStep : MacroStep
     }
 
     public override string Description => $"Attendre {Milliseconds} ms";
+}
+
+/// <summary>
+/// Attend qu'une image apparaisse ou disparaisse à l'écran.
+///
+/// C'est ce qui remplace les attentes devinées : l'ouverture d'un panneau ou d'une liste
+/// devient un fait constaté et non un pari sur 300 ms. Trop court, la macro clique dans le
+/// vide ; trop long, elle traîne sur chaque personnage.
+/// </summary>
+public sealed class WaitForImageStep : PointerStep
+{
+    private ImageAnchor? _anchor;
+    private bool _waitUntilGone;
+    private int _timeoutMs = 5000;
+
+    public ImageAnchor? Anchor
+    {
+        get => _anchor;
+        set { if (Set(ref _anchor, value)) RaiseDescription(); }
+    }
+
+    /// <summary>Attendre la disparition plutôt que l'apparition — utile après avoir fermé un panneau.</summary>
+    public bool WaitUntilGone
+    {
+        get => _waitUntilGone;
+        set { if (Set(ref _waitUntilGone, value)) RaiseDescription(); }
+    }
+
+    /// <summary>Au-delà, la macro poursuit en signalant l'échec plutôt que de rester bloquée.</summary>
+    public int TimeoutMs
+    {
+        get => _timeoutMs;
+        set { if (Set(ref _timeoutMs, Math.Clamp(value, 100, 60000))) RaiseDescription(); }
+    }
+
+    public override string Description => Anchor is { IsEmpty: false }
+        ? $"Attendre {(WaitUntilGone ? "la disparition" : "l'apparition")} de l'image près de {PositionText} ({TimeoutMs} ms max)"
+        : "Attendre une image (aucune image capturée)";
+}
+
+public enum ScrollDirection { Up, Down }
+
+/// <summary>Molette, nécessaire pour parcourir une liste avant d'y cliquer.</summary>
+public sealed class ScrollStep : PointerStep
+{
+    private ScrollDirection _direction = ScrollDirection.Down;
+    private int _notches = 3;
+
+    public ScrollDirection Direction
+    {
+        get => _direction;
+        set { if (Set(ref _direction, value)) RaiseDescription(); }
+    }
+
+    /// <summary>Nombre de crans de molette.</summary>
+    public int Notches
+    {
+        get => _notches;
+        set { if (Set(ref _notches, Math.Clamp(value, 1, 50))) RaiseDescription(); }
+    }
+
+    public override string Description =>
+        $"Molette {(Direction == ScrollDirection.Up ? "vers le haut" : "vers le bas")} ×{Notches} à {PositionText}";
 }

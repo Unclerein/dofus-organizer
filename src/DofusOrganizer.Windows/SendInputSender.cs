@@ -60,6 +60,41 @@ public sealed class SendInputSender : IInputSender
         if (inputs.Count > 0) Send([.. inputs]);
     }
 
+    public void Scroll(AbsolutePoint point, int notches)
+    {
+        if (notches == 0) return;
+
+        // Le curseur est amené sur le point d'abord : la molette agit sur ce qui est
+        // survolé, pas sur ce qui a le focus.
+        var inputs = new List<INPUT> { MouseInput(point, MOUSEEVENTF_MOVE) };
+
+        // Un cran vaut WHEEL_DELTA. Les envoyer un par un plutôt qu'en un seul bloc :
+        // les listes défilent souvent d'une ligne par cran, et un multiple géant peut
+        // être plafonné ou ignoré.
+        for (int i = 0; i < Math.Abs(notches); i++)
+        {
+            inputs.Add(WheelInput(point, notches > 0 ? WHEEL_DELTA : -WHEEL_DELTA));
+        }
+
+        Send([.. inputs]);
+    }
+
+    private static INPUT WheelInput(AbsolutePoint point, int amount) => new()
+    {
+        type = INPUT_MOUSE,
+        U = new InputUnion
+        {
+            mi = new MOUSEINPUT
+            {
+                dx = point.X,
+                dy = point.Y,
+                mouseData = unchecked((uint)amount),
+                dwFlags = MOUSEEVENTF_WHEEL | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
+                dwExtraInfo = InjectionTag,
+            },
+        },
+    };
+
     public ScreenPoint GetCursorPosition()
         => GetCursorPos(out POINT point) ? new ScreenPoint(point.X, point.Y) : new ScreenPoint(0, 0);
 

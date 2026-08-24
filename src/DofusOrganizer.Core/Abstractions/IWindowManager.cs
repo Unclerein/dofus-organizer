@@ -1,5 +1,6 @@
 using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Models;
+using DofusOrganizer.Core.Vision;
 
 namespace DofusOrganizer.Core.Abstractions;
 
@@ -30,4 +31,10 @@ public interface IWindowManager
 
     /// <summary>Rectangle englobant tous les écrans.</summary>
     VirtualScreen GetVirtualScreen();
+
+    /// <summary>
+    /// Capture une zone de l'écran, ou null si la capture échoue. C'est ce qui permet à une
+    /// étape de viser une image plutôt qu'une position.
+    /// </summary>
+    PixelBuffer? CaptureScreen(ScreenRect area);
 }

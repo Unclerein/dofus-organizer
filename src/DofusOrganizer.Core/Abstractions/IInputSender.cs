@@ -13,6 +13,9 @@ public interface IInputSender
 
     void SendKey(int virtualKey, KeyModifiers modifiers, KeyAction action, bool useScanCodes);
 
+    /// <summary>Molette au point donné. Crans positifs vers le haut, négatifs vers le bas.</summary>
+    void Scroll(AbsolutePoint point, int notches);
+
     ScreenPoint GetCursorPosition();
 
     void SetCursorPosition(ScreenPoint point);

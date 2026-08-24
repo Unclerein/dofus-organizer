@@ -3,6 +3,7 @@ using DofusOrganizer.Core.Abstractions;
 using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Models;
 using DofusOrganizer.Core.Organizer;
+using DofusOrganizer.Core.Vision;
 using DofusOrganizer.Windows.Native;
 using static DofusOrganizer.Windows.Native.NativeMethods;
 
@@ -170,6 +171,8 @@ public sealed class Win32WindowManager : IWindowManager
         bounds = new ClientBounds(new ScreenPoint(origin.X, origin.Y), rect.Width, rect.Height);
         return !bounds.IsEmpty;
     }
+
+    public PixelBuffer? CaptureScreen(ScreenRect area) => ScreenCapture.Capture(area);
 
     public VirtualScreen GetVirtualScreen() => new(
         GetSystemMetrics(SM_XVIRTUALSCREEN),

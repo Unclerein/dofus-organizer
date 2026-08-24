@@ -2,6 +2,7 @@ using DofusOrganizer.Core.Abstractions;
 using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Models;
 using DofusOrganizer.Core.Organizer;
+using DofusOrganizer.Core.Vision;
 
 namespace DofusOrganizer.Core.Macros;
 
@@ -85,9 +86,21 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
                 break;
 
             case MouseClickStep click:
-                if (TryResolvePoint(click.Point, state, out var clickPoint))
+                if (TryResolveTarget(click.Point, click.Anchor, state, out var clickPoint))
                 {
                     input.Click(clickPoint, click.Button, click.Clicks);
+                    await clock.DelayAsync(settings.ActionDelayMs, ct).ConfigureAwait(false);
+                }
+                break;
+
+            case WaitForImageStep wait:
+                await WaitForImageAsync(wait, state, ct).ConfigureAwait(false);
+                break;
+
+            case ScrollStep scroll:
+                if (TryResolvePoint(scroll.Point, state, out var scrollPoint))
+                {
+                    input.Scroll(scrollPoint, scroll.Direction == ScrollDirection.Up ? scroll.Notches : -scroll.Notches);
                     await clock.DelayAsync(settings.ActionDelayMs, ct).ConfigureAwait(false);
                 }
                 break;
@@ -161,16 +174,114 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
     private bool TryResolvePoint(NormalizedPoint point, RunState state, out AbsolutePoint absolute)
     {
         absolute = default;
-        nint handle = state.CurrentTarget != 0 ? state.CurrentTarget : windows.GetForegroundWindow();
-        if (handle == 0 || !windows.TryGetClientBounds(handle, out var bounds) || bounds.IsEmpty)
-        {
-            _log.Log("Étape ignorée : aucune fenêtre cible valide.");
-            return false;
-        }
+        if (!TryGetTargetBounds(state, out var bounds)) return false;
 
         absolute = CoordinateMapper.ToAbsolute(point, bounds, windows.GetVirtualScreen());
         return true;
     }
+
+    private bool TryGetTargetBounds(RunState state, out ClientBounds bounds)
+    {
+        bounds = default;
+        nint handle = state.CurrentTarget != 0 ? state.CurrentTarget : windows.GetForegroundWindow();
+        if (handle == 0 || !windows.TryGetClientBounds(handle, out bounds) || bounds.IsEmpty)
+        {
+            _log.Log("Étape ignorée : aucune fenêtre cible valide.");
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Situe le point à viser : par reconnaissance d'image si l'étape porte un ancrage,
+    /// par ses coordonnées sinon.
+    ///
+    /// Un ancrage introuvable ne fait pas échouer l'étape mais la fait retomber sur les
+    /// coordonnées, en le signalant. C'est le compromis retenu : cliquer à l'ancienne place
+    /// peut rater, mais renoncer laisserait la macro à moitié faite sans que rien ne le dise.
+    /// </summary>
+    private bool TryResolveTarget(NormalizedPoint point, ImageAnchor? anchor, RunState state, out AbsolutePoint absolute)
+    {
+        if (!TryResolvePoint(point, state, out absolute)) return false;
+        if (anchor is null || anchor.IsEmpty) return true;
+
+        if (!TryGetTargetBounds(state, out var bounds)) return true;
+
+        var expected = CoordinateMapper.ToScreen(point, bounds);
+        var located = Locate(anchor, expected, bounds);
+
+        if (located is null)
+        {
+            _log.Log("Image non retrouvée : l'étape retombe sur sa position enregistrée.");
+            return true;
+        }
+
+        absolute = CoordinateMapper.ToAbsolute(located.Value, windows.GetVirtualScreen());
+        return true;
+    }
+
+    /// <summary>Cherche l'image d'un ancrage autour d'une position, et rend le point à cliquer.</summary>
+    private ScreenPoint? Locate(ImageAnchor anchor, ScreenPoint expected, ClientBounds bounds)
+    {
+        var needle = anchor.ToPixelBuffer();
+        if (needle is null) return null;
+
+        var area = ScreenRect.Around(expected, anchor.SearchRadius, bounds);
+        if (area.IsEmpty) return null;
+
+        var haystack = windows.CaptureScreen(area);
+        if (haystack is null) return null;
+
+        var match = TemplateMatcher.Find(haystack, needle, anchor.MinimumScore);
+        if (match is null) return null;
+
+        // La position trouvée désigne le coin du fragment ; le clic vise l'endroit qui
+        // avait été cliqué à l'intérieur de celui-ci.
+        return new ScreenPoint(
+            area.X + match.Value.X + anchor.OffsetX,
+            area.Y + match.Value.Y + anchor.OffsetY);
+    }
+
+    private async Task WaitForImageAsync(WaitForImageStep step, RunState state, CancellationToken ct)
+    {
+        if (step.Anchor is not { IsEmpty: false } anchor)
+        {
+            _log.Log("Attente sur image ignorée : aucune image capturée.");
+            return;
+        }
+
+        if (!TryGetTargetBounds(state, out var bounds)) return;
+        var expected = CoordinateMapper.ToScreen(step.Point, bounds);
+
+        // Le temps écoulé est compté en tours de boucle et non sur l'heure réelle, pour que
+        // l'attente dépende de l'horloge injectée et reste donc vérifiable en test. La
+        // recherche d'image elle-même prend quelques millisecondes, ce qui allonge un peu
+        // l'attente réelle par rapport au délai annoncé : dépasser un maximum est sans
+        // conséquence, l'écourter en aurait.
+        int elapsed = 0;
+
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            bool present = Locate(anchor, expected, bounds) is not null;
+            if (present != step.WaitUntilGone) return;
+
+            if (elapsed >= step.TimeoutMs)
+            {
+                // Poursuivre plutôt que s'arrêter : les personnages suivants ont peut-être
+                // encore une chance d'aboutir, et l'utilisateur voit ce qui a échoué.
+                _log.Log($"Attente sur image expirée après {step.TimeoutMs} ms.");
+                return;
+            }
+
+            await clock.DelayAsync(PollIntervalMs, ct).ConfigureAwait(false);
+            elapsed += PollIntervalMs;
+        }
+    }
+
+    /// <summary>Intervalle entre deux vérifications d'une attente sur image.</summary>
+    private const int PollIntervalMs = 60;
 
     private async Task RestoreAsync(Macro macro, AppSettings settings, RunState state, CancellationToken ct)
     {

@@ -1,6 +1,7 @@
 using DofusOrganizer.Core.Abstractions;
 using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Models;
+using DofusOrganizer.Core.Vision;
 
 namespace DofusOrganizer.Core.Tests;
 
@@ -11,6 +12,7 @@ public abstract record RecordedAction
     public sealed record Click(AbsolutePoint Point, MouseButton Button, int Clicks) : RecordedAction;
     public sealed record Move(AbsolutePoint Point) : RecordedAction;
     public sealed record Key(int VirtualKey, KeyModifiers Modifiers, KeyAction Action) : RecordedAction;
+    public sealed record Wheel(AbsolutePoint Point, int Notches) : RecordedAction;
     public sealed record Delay(int Milliseconds) : RecordedAction;
     public sealed record Cursor(ScreenPoint Point) : RecordedAction;
 }
@@ -68,6 +70,21 @@ public sealed class FakeWindowManager : IWindowManager
     public bool TryGetClientBounds(nint handle, out ClientBounds bounds) => _bounds.TryGetValue(handle, out bounds);
 
     public VirtualScreen GetVirtualScreen() => Screen;
+
+    /// <summary>
+    /// Écran simulé, dans lequel les captures découpent. Les tests y dessinent ce qu'ils
+    /// veulent voir trouvé, ce qui rend le rejeu ancré à l'image vérifiable sans Windows.
+    /// </summary>
+    public PixelBuffer Surface { get; set; } = new(0, 0);
+
+    public List<ScreenRect> Captures { get; } = [];
+
+    public PixelBuffer? CaptureScreen(ScreenRect area)
+    {
+        Captures.Add(area);
+        if (area.IsEmpty || Surface.IsEmpty) return null;
+        return Surface.Crop(area.X, area.Y, area.Width, area.Height);
+    }
 }
 
 public sealed class FakeInputSender(List<RecordedAction> actions) : IInputSender
@@ -81,6 +98,8 @@ public sealed class FakeInputSender(List<RecordedAction> actions) : IInputSender
 
     public void SendKey(int virtualKey, KeyModifiers modifiers, KeyAction action, bool useScanCodes)
         => actions.Add(new RecordedAction.Key(virtualKey, modifiers, action));
+
+    public void Scroll(AbsolutePoint point, int notches) => actions.Add(new RecordedAction.Wheel(point, notches));
 
     public ScreenPoint GetCursorPosition() => Cursor;
 
