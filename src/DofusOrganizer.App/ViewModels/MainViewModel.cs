@@ -10,6 +10,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly OrganizerService _service;
     private CharacterRowViewModel? _selectedCharacter;
     private MacroEditorViewModel? _selectedMacro;
+    private BroadcastKey? _selectedBroadcast;
     private string _status = "Prêt.";
     private bool _macroRunning;
     private bool _recording;
@@ -62,6 +63,12 @@ public sealed class MainViewModel : ObservableObject
         CaptureAnchorCommand = new RelayCommand(async () => await CaptureAnchorAsync(), () => SelectedMacro?.HasSelection == true);
         ClearAnchorCommand = new RelayCommand(ClearAnchor, () => SelectedMacro?.HasSelection == true);
 
+        AddBroadcastCommand = new RelayCommand(AddBroadcast);
+        DeleteBroadcastCommand = new RelayCommand(DeleteBroadcast, () => SelectedBroadcast is not null);
+        AssignBroadcastTriggerCommand = new RelayCommand(async () => await AssignBroadcastHotkeyAsync(trigger: true), () => SelectedBroadcast is not null);
+        AssignBroadcastKeyCommand = new RelayCommand(async () => await AssignBroadcastHotkeyAsync(trigger: false), () => SelectedBroadcast is not null);
+        RunBroadcastCommand = new RelayCommand(async () => await RunBroadcastAsync(), () => SelectedBroadcast is not null && !MacroRunning);
+
         AssignNextHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Next));
         AssignPreviousHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Previous));
         AssignPanicHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Panic));
@@ -73,6 +80,9 @@ public sealed class MainViewModel : ObservableObject
         SyncMacros();
         SelectedMacro = Macros.FirstOrDefault();
 
+        foreach (var broadcast in Profile.Broadcasts) Broadcasts.Add(broadcast);
+        SelectedBroadcast = Broadcasts.FirstOrDefault();
+
         RefreshCharacters();
     }
 
@@ -83,6 +93,13 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<CharacterRowViewModel> Characters { get; } = [];
 
     public ObservableCollection<MacroEditorViewModel> Macros { get; } = [];
+
+    /// <summary>
+    /// Reflet observable de <see cref="Profile.Broadcasts"/>, qui est une simple liste : les
+    /// deux sont modifiées ensemble, l'une pour l'affichage, l'autre pour ce qui est écrit
+    /// dans le profil.
+    /// </summary>
+    public ObservableCollection<BroadcastKey> Broadcasts { get; } = [];
 
     private StepKind _newStepKind = StepKind.Clic;
 
@@ -113,6 +130,19 @@ public sealed class MainViewModel : ObservableObject
     }
 
     private void OnMacroChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => RefreshCommands();
+
+    public BroadcastKey? SelectedBroadcast
+    {
+        get => _selectedBroadcast;
+        set
+        {
+            if (!Set(ref _selectedBroadcast, value)) return;
+            Raise(nameof(HasBroadcast));
+            RefreshCommands();
+        }
+    }
+
+    public bool HasBroadcast => _selectedBroadcast is not null;
 
     public string Status
     {
@@ -157,6 +187,11 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand ToggleRecordingCommand { get; }
     public RelayCommand CaptureAnchorCommand { get; }
     public RelayCommand ClearAnchorCommand { get; }
+    public RelayCommand AddBroadcastCommand { get; }
+    public RelayCommand DeleteBroadcastCommand { get; }
+    public RelayCommand AssignBroadcastTriggerCommand { get; }
+    public RelayCommand AssignBroadcastKeyCommand { get; }
+    public RelayCommand RunBroadcastCommand { get; }
     public RelayCommand AssignNextHotkeyCommand { get; }
     public RelayCommand AssignPreviousHotkeyCommand { get; }
     public RelayCommand AssignPanicHotkeyCommand { get; }
@@ -458,6 +493,63 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    private void AddBroadcast()
+    {
+        var broadcast = new BroadcastKey { Name = $"Diffusion {Profile.Broadcasts.Count + 1}" };
+        Profile.Broadcasts.Add(broadcast);
+        Broadcasts.Add(broadcast);
+        SelectedBroadcast = broadcast;
+        _service.ApplyBindings();
+    }
+
+    private void DeleteBroadcast()
+    {
+        if (SelectedBroadcast is null) return;
+
+        // Aucune confirmation : une diffusion tient en trois champs et se refait en dix
+        // secondes, là où une macro représente une capture entière.
+        Profile.Broadcasts.Remove(SelectedBroadcast);
+        Broadcasts.Remove(SelectedBroadcast);
+        SelectedBroadcast = Broadcasts.FirstOrDefault();
+        _service.ApplyBindings();
+    }
+
+    /// <summary>
+    /// Assigne l'un des deux raccourcis d'une diffusion : celui qui la déclenche, ou la touche
+    /// qui part dans le jeu. À la création, choisir le déclencheur remplit aussi la touche
+    /// envoyée — c'est le cas courant, et laisser une diffusion sans rien à envoyer ne servirait
+    /// personne.
+    /// </summary>
+    private async Task AssignBroadcastHotkeyAsync(bool trigger)
+    {
+        if (SelectedBroadcast is null) return;
+
+        string label = trigger
+            ? $"déclencher « {SelectedBroadcast.Name} »"
+            : $"envoyer à l'équipe pour « {SelectedBroadcast.Name} »";
+
+        var hotkey = await CaptureAsync($"Appuyez sur la touche pour {label}");
+        if (hotkey is null) return;
+
+        if (trigger)
+        {
+            SelectedBroadcast.Trigger = hotkey;
+            SelectedBroadcast.Sent ??= hotkey;
+        }
+        else
+        {
+            SelectedBroadcast.Sent = hotkey;
+        }
+
+        _service.ApplyBindings();
+    }
+
+    private async Task RunBroadcastAsync()
+    {
+        if (SelectedBroadcast is null) return;
+        await _service.BroadcastAsync(SelectedBroadcast);
+    }
+
     private enum SettingHotkey { Next, Previous, Panic, ToggleRecording, RepeatOnTeam }
 
     private async Task AssignSettingHotkeyAsync(SettingHotkey which)
@@ -518,6 +610,8 @@ public sealed class MainViewModel : ObservableObject
             RunMacroCommand, StopMacroCommand, AddStepCommand, RemoveStepCommand,
             MoveStepUpCommand, MoveStepDownCommand, ToggleRecordingCommand,
             CaptureAnchorCommand, ClearAnchorCommand,
+            DeleteBroadcastCommand, AssignBroadcastTriggerCommand, AssignBroadcastKeyCommand,
+            RunBroadcastCommand,
         ];
 
         foreach (var command in commands) command?.RaiseCanExecuteChanged();

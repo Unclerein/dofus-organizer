@@ -37,6 +37,33 @@ dotnet publish src/DofusOrganizer.App -c Release -r win-x64 --self-contained tru
 **Jouez en mode fenêtré ou fenêtré sans bordure.** En plein écran exclusif, Windows gère
 mal le passage d'une fenêtre à l'autre et les changements sont lents ou refusés.
 
+## Envoyer une touche à toute l'équipe
+
+S'asseoir, boire une potion, ouvrir la carte, se déconnecter : des gestes identiques sur
+chaque personnage, qui n'ont rien à faire dans une macro — il n'y a ni position à retrouver
+ni image à reconnaître, juste une frappe à répéter.
+
+Dans **Réglages**, section « Diffusion d'une touche à l'équipe » : **Ajouter**, nommez
+l'entrée, assignez le **déclencheur** (la touche que *vous* pressez) puis la **touche
+envoyée** (celle que reçoivent les personnages). **Tester la diffusion** l'essaie tout de
+suite.
+
+Les deux sont distinctes à dessein : cela permet de diffuser une touche dont le jeu se sert
+déjà — `F1`, `Espace` — sans la perdre en usage ordinaire, puisque le déclencheur, lui, est
+absorbé avant d'atteindre le jeu. Quand les deux se confondent, assigner le déclencheur
+remplit automatiquement la touche envoyée.
+
+**Laissez « Envoyer aussi au personnage actif » coché.** C'est le réglage juste tant que
+« Empêcher les touches assignées d'atteindre le jeu » l'est aussi : le déclencheur étant
+absorbé, le client que vous jouez ne le reçoit jamais, et sans cette case le meneur serait
+le seul à ne rien faire. À décocher seulement si vous avez désactivé l'absorption, auquel
+cas il recevrait deux frappes.
+
+La diffusion passe sur chaque client à son tour, il ne s'agit pas d'un envoi simultané :
+comptez un changement de fenêtre par personnage, soit environ une seconde à huit clients.
+Le délai est réglable par « Après un changement de fenêtre » dans les Réglages, et l'arrêt
+d'urgence l'interrompt comme n'importe quelle macro.
+
 ## Écrire une macro de soin
 
 L'idée : enregistrer la séquence sur **un seul** personnage, et laisser la boucle la

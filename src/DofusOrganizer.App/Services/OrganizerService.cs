@@ -365,6 +365,27 @@ public sealed class OrganizerService : IDisposable, ILogSink
         _windows.Activate(entry.Window.Handle);
     }
 
+    /// <summary>
+    /// Envoie une touche à chaque personnage, l'un après l'autre.
+    ///
+    /// Le délai reste celui des actions ordinaires et non celui du rejeu sur l'équipe : il n'y
+    /// a ni panneau à ouvrir ni liste à charger, juste une frappe. Le temps d'installation
+    /// après chaque changement de fenêtre s'applique en revanche, d'où une seconde environ
+    /// pour huit clients — une diffusion n'est pas un envoi simultané.
+    /// </summary>
+    public async Task BroadcastAsync(BroadcastKey broadcast)
+    {
+        var macro = KeyBroadcast.BuildMacro(broadcast);
+        if (macro is null)
+        {
+            Log($"« {broadcast.Name} » : aucune touche à envoyer, choisissez-en une dans les réglages.");
+            return;
+        }
+
+        Log($"Diffusion de {broadcast.Sent} à l'équipe…");
+        await RunMacroAsync(macro).ConfigureAwait(false);
+    }
+
     public Task RunMacroAsync(Macro macro) => RunMacroAsync(macro, actionDelayOverride: null);
 
     public async Task RunMacroAsync(Macro macro, int? actionDelayOverride)
@@ -404,6 +425,9 @@ public sealed class OrganizerService : IDisposable, ILogSink
                 case HotkeyActionKind.RepeatOnTeam: ToggleTeamRepeat(); break;
                 case HotkeyActionKind.RunMacro when action.Macro is not null:
                     _ = RunMacroAsync(action.Macro);
+                    break;
+                case HotkeyActionKind.Broadcast when action.Broadcast is not null:
+                    _ = BroadcastAsync(action.Broadcast);
                     break;
             }
         });

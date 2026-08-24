@@ -389,6 +389,62 @@
               pendant une capture : ce sont les seuls moyens de reprendre la main sans revenir dans cette fenêtre.
             </TextBlock>
 
+            <TextBlock Text="Diffusion d'une touche à l'équipe" Style="{StaticResource SectionHeader}" />
+            <TextBlock Style="{StaticResource Hint}">
+              Une touche envoyée à chaque personnage, l'un après l'autre : s'asseoir, boire une potion,
+              ouvrir la carte, se déconnecter. Rien à enregistrer — il n'y a ni position à retrouver ni
+              image à reconnaître, juste une frappe à répéter.
+            </TextBlock>
+            <Grid Margin="0,6,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+
+              <DockPanel Grid.Column="0" Margin="0,0,12,0">
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                  <Button Content="Ajouter" Command="{Binding AddBroadcastCommand}" />
+                  <Button Content="Supprimer" Command="{Binding DeleteBroadcastCommand}" />
+                </StackPanel>
+                <ListBox ItemsSource="{Binding Broadcasts}" SelectedItem="{Binding SelectedBroadcast}"
+                         DisplayMemberPath="Summary" MinHeight="110" MaxHeight="170" />
+              </DockPanel>
+
+              <StackPanel Grid.Column="1" IsEnabled="{Binding HasBroadcast}">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                  <TextBlock Text="Nom" Width="130" VerticalAlignment="Center" />
+                  <TextBox Text="{Binding SelectedBroadcast.Name, UpdateSourceTrigger=LostFocus}" Width="220" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                  <TextBlock Text="Déclencheur" Width="130" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding SelectedBroadcast.Trigger, TargetNullValue=(aucun)}"
+                             Width="150" VerticalAlignment="Center" FontWeight="SemiBold" />
+                  <Button Content="Assigner" Command="{Binding AssignBroadcastTriggerCommand}" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                  <TextBlock Text="Touche envoyée" Width="130" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding SelectedBroadcast.Sent, TargetNullValue=(aucune)}"
+                             Width="150" VerticalAlignment="Center" FontWeight="SemiBold" />
+                  <Button Content="Assigner" Command="{Binding AssignBroadcastKeyCommand}" />
+                </StackPanel>
+
+                <CheckBox Content="Envoyer aussi au personnage actif"
+                          IsChecked="{Binding SelectedBroadcast.IncludeCurrent}" Margin="0,3" />
+
+                <Button Content="Tester la diffusion" Command="{Binding RunBroadcastCommand}"
+                        HorizontalAlignment="Left" MinWidth="150" Margin="0,8,0,0" />
+              </StackPanel>
+            </Grid>
+            <TextBlock Style="{StaticResource Hint}">
+              Le déclencheur et la touche envoyée sont deux choses distinctes : cela permet de diffuser une
+              touche dont le jeu se sert déjà, sans la perdre en usage ordinaire. Laissez « Envoyer aussi au
+              personnage actif » coché tant que l'absorption des touches assignées l'est aussi — sans quoi le
+              meneur serait le seul à ne rien faire. La diffusion passe sur chaque client à son tour et prend
+              donc le temps d'un changement de fenêtre par personnage, environ une seconde à huit clients.
+            </TextBlock>
+
             <TextBlock Text="Comportement" Style="{StaticResource SectionHeader}" />
             <CheckBox Content="N'activer les raccourcis que lorsqu'une fenêtre Dofus est au premier plan"
                       IsChecked="{Binding Settings.HotkeysOnlyWhenGameFocused}" Margin="0,3" />

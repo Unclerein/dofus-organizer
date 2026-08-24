@@ -94,6 +94,12 @@ public partial class App : Application
         model.MoveStepUpCommand.Execute(null);
         model.MoveStepDownCommand.Execute(null);
         model.RemoveStepCommand.Execute(null);
+
+        // Ajout puis suppression d'une diffusion : le panneau se lie à la sélection, et une
+        // liste vidée est précisément le cas où une liaison mal écrite se voit.
+        model.AddBroadcastCommand.Execute(null);
+        model.DeleteBroadcastCommand.Execute(null);
+
         model.RefreshCommand.Execute(null);
         model.SaveCommand.Execute(null);
     }

@@ -73,6 +73,40 @@ public class ProfileStoreTests : IDisposable
     }
 
     [Fact]
+    public void Les_diffusions_survivent_a_un_aller_retour_sur_disque()
+    {
+        // Une diffusion perdue au redémarrage ne se voit pas : le raccourci cesse simplement
+        // de répondre, sans erreur ni message.
+        var store = new ProfileStore(PathFor("diffusion.json"));
+        var profile = new Profile
+        {
+            Broadcasts =
+            {
+                new BroadcastKey
+                {
+                    Name = "S'asseoir",
+                    Trigger = new Hotkey(VirtualKeys.F9, KeyModifiers.Control),
+                    Sent = new Hotkey(VirtualKeys.Space, KeyModifiers.Shift),
+                },
+                new BroadcastKey { Name = "Potion", IncludeCurrent = false },
+            },
+        };
+
+        store.Save(profile);
+        var loaded = store.Load();
+
+        Assert.Equal(2, loaded.Broadcasts.Count);
+        Assert.Equal("S'asseoir", loaded.Broadcasts[0].Name);
+        Assert.Equal(new Hotkey(VirtualKeys.F9, KeyModifiers.Control), loaded.Broadcasts[0].Trigger);
+        Assert.Equal(new Hotkey(VirtualKeys.Space, KeyModifiers.Shift), loaded.Broadcasts[0].Sent);
+        Assert.True(loaded.Broadcasts[0].IncludeCurrent);
+
+        Assert.False(loaded.Broadcasts[1].IncludeCurrent);
+        Assert.Null(loaded.Broadcasts[1].Sent);
+        Assert.False(loaded.Broadcasts[1].IsUsable);
+    }
+
+    [Fact]
     public void Les_nouvelles_etapes_survivent_a_un_aller_retour_sur_disque()
     {
         var store = new ProfileStore(PathFor("vision.json"));

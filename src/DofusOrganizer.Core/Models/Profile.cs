@@ -7,4 +7,7 @@ public sealed class Profile
     public AppSettings Settings { get; set; } = new();
     public List<CharacterSlot> Characters { get; set; } = [];
     public List<Macro> Macros { get; set; } = [];
+
+    /// <summary>Touches diffusées à toute l'équipe, chacune avec son raccourci déclencheur.</summary>
+    public List<BroadcastKey> Broadcasts { get; set; } = [];
 }
