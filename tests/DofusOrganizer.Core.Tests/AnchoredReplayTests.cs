@@ -247,6 +247,72 @@ public class AnchoredReplayTests
     }
 
     [Fact]
+    public async Task Le_rejeu_sur_l_equipe_saute_le_meneur()
+    {
+        // Mécanisme sur lequel repose « Refaire sur l'équipe » : la séquence capturée est
+        // enveloppée dans une boucle qui ignore la fenêtre au premier plan, puisque le
+        // meneur vient de faire l'action lui-même.
+        var (windows, roster, profile) = BuildTeam();
+        windows.Foreground = 1;
+
+        var macro = new Macro
+        {
+            Name = "Refaire sur l'équipe",
+            RestoreInitialWindow = false,
+            RestoreCursorPosition = false,
+            Steps =
+            {
+                new ForEachCharacterStep
+                {
+                    SkipCurrentWindow = true,
+                    Steps = { new MouseClickStep { Fx = 0.5, Fy = 0.5 } },
+                },
+            },
+        };
+
+        var actions = windows.Actions;
+        var runner = new MacroRunner(windows, new FakeInputSender(actions), new FakeClock(actions));
+
+        await runner.RunAsync(macro, roster, profile.Settings, CancellationToken.None);
+
+        Assert.Equal([(nint)2], actions.OfType<RecordedAction.Focus>().Select(f => f.Handle));
+        Assert.Single(actions.OfType<RecordedAction.Click>());
+    }
+
+    [Fact]
+    public async Task Le_rejeu_sur_l_equipe_utilise_son_propre_delai()
+    {
+        // Les quelques dizaines de millisecondes qui enchaînent des clics de sort ne
+        // laissent pas à une liste le temps de s'ouvrir : ce rejeu a son propre délai.
+        var (windows, roster, profile) = BuildTeam();
+        profile.Settings.ActionDelayMs = 30;
+        windows.Foreground = 1;
+
+        var macro = new Macro
+        {
+            Name = "Refaire sur l'équipe",
+            RestoreInitialWindow = false,
+            RestoreCursorPosition = false,
+            Steps =
+            {
+                new ForEachCharacterStep
+                {
+                    SkipCurrentWindow = true,
+                    Steps = { new MouseClickStep { Fx = 0.5, Fy = 0.5 } },
+                },
+            },
+        };
+
+        var actions = windows.Actions;
+        var clock = new FakeClock(actions);
+        var runner = new MacroRunner(windows, new FakeInputSender(actions), clock);
+
+        await runner.RunAsync(macro, roster, profile.Settings, CancellationToken.None, actionDelayOverride: 600);
+
+        Assert.Equal(600, clock.TotalDelay);
+    }
+
+    [Fact]
     public async Task La_molette_est_envoyee_au_point_demande()
     {
         var (windows, roster, profile) = BuildTeam();

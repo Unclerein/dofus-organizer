@@ -151,6 +151,7 @@
                 <ContentControl.Resources>
 
                   <DataTemplate DataType="{x:Type models:MouseClickStep}">
+                   <StackPanel>
                     <StackPanel Orientation="Horizontal">
                       <TextBlock Text="Bouton" VerticalAlignment="Center" Margin="0,0,6,0" />
                       <ComboBox SelectedValue="{Binding Button}" Width="90" Margin="0,0,14,0"
@@ -163,6 +164,26 @@
                       <TextBlock Text="Répétitions" VerticalAlignment="Center" Margin="0,0,6,0" />
                       <TextBox Text="{Binding Clicks, UpdateSourceTrigger=LostFocus}" Width="44" />
                     </StackPanel>
+                    <!-- L'image d'ancrage : le clic vise ce qu'il reconnaît, la position ne
+                         servant qu'à délimiter la zone de recherche. -->
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                      <Image Source="{Binding Anchor, Converter={StaticResource AnchorPreview}}"
+                             Width="64" Height="64" Stretch="Uniform" Margin="0,0,10,0"
+                             RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                      <StackPanel>
+                        <TextBlock Text="{Binding Anchor, Converter={StaticResource AnchorSummary}}"
+                                   Foreground="#666" TextWrapping="Wrap" MaxWidth="330" />
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                          <Button Content="Capturer l'image"
+                                  Command="{Binding DataContext.CaptureAnchorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  MinWidth="140" />
+                          <Button Content="Retirer l'ancrage"
+                                  Command="{Binding DataContext.ClearAnchorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  MinWidth="140" Margin="0" />
+                        </StackPanel>
+                      </StackPanel>
+                    </StackPanel>
+                   </StackPanel>
                   </DataTemplate>
 
                   <DataTemplate DataType="{x:Type models:MouseMoveStep}">
@@ -184,6 +205,44 @@
                       <ComboBox SelectedValue="{Binding Action}" Width="110"
                                 ItemsSource="{x:Static vm:Choices.KeyActions}"
                                 SelectedValuePath="Value" DisplayMemberPath="Label" />
+                    </StackPanel>
+                  </DataTemplate>
+
+                  <DataTemplate DataType="{x:Type models:WaitForImageStep}">
+                    <StackPanel>
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Chercher près de X %" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBox Text="{Binding Fx, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="72" Margin="0,0,14,0" />
+                        <TextBlock Text="Y %" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBox Text="{Binding Fy, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="72" Margin="0,0,14,0" />
+                        <TextBlock Text="Délai max (ms)" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBox Text="{Binding TimeoutMs, UpdateSourceTrigger=LostFocus}" Width="72" />
+                      </StackPanel>
+                      <CheckBox Content="Attendre que l'image disparaisse au lieu d'apparaître"
+                                IsChecked="{Binding WaitUntilGone}" Margin="0,6,0,0" />
+                      <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <Image Source="{Binding Anchor, Converter={StaticResource AnchorPreview}}"
+                               Width="64" Height="64" Stretch="Uniform" Margin="0,0,10,0"
+                               RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                        <Button Content="Capturer l'image"
+                                Command="{Binding DataContext.CaptureAnchorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                MinWidth="140" VerticalAlignment="Top" />
+                      </StackPanel>
+                    </StackPanel>
+                  </DataTemplate>
+
+                  <DataTemplate DataType="{x:Type models:ScrollStep}">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="Sens" VerticalAlignment="Center" Margin="0,0,6,0" />
+                      <ComboBox SelectedValue="{Binding Direction}" Width="120" Margin="0,0,14,0"
+                                ItemsSource="{x:Static vm:Choices.ScrollDirections}"
+                                SelectedValuePath="Value" DisplayMemberPath="Label" />
+                      <TextBlock Text="Crans" VerticalAlignment="Center" Margin="0,0,6,0" />
+                      <TextBox Text="{Binding Notches, UpdateSourceTrigger=LostFocus}" Width="52" Margin="0,0,14,0" />
+                      <TextBlock Text="X %" VerticalAlignment="Center" Margin="0,0,6,0" />
+                      <TextBox Text="{Binding Fx, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="72" Margin="0,0,14,0" />
+                      <TextBlock Text="Y %" VerticalAlignment="Center" Margin="0,0,6,0" />
+                      <TextBox Text="{Binding Fy, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="72" />
                     </StackPanel>
                   </DataTemplate>
 
@@ -250,7 +309,7 @@
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
               </Grid.RowDefinitions>
 
@@ -273,7 +332,17 @@
               <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold"
                          Text="{Binding Settings.ToggleRecordingHotkey, TargetNullValue=(aucun)}" />
               <Button Grid.Row="3" Grid.Column="2" Content="Assigner" Command="{Binding AssignToggleRecordingHotkeyCommand}" Margin="0,2" />
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="Refaire sur l'équipe" VerticalAlignment="Center" Margin="0,4" />
+              <TextBlock Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold"
+                         Text="{Binding Settings.RepeatOnTeamHotkey, TargetNullValue=(aucun)}" />
+              <Button Grid.Row="4" Grid.Column="2" Content="Assigner" Command="{Binding AssignRepeatOnTeamHotkeyCommand}" Margin="0,2" />
             </Grid>
+            <TextBlock Style="{StaticResource Hint}">
+              « Refaire sur l'équipe » : appuyez une fois sur votre personnage meneur, faites l'action
+              (prendre un zaap, enchaîner un dialogue), appuyez de nouveau — les autres personnages la refont.
+              Aucune macro à écrire, l'outil n'a pas à savoir de quelle destination il s'agit.
+            </TextBlock>
             <TextBlock Style="{StaticResource Hint}">
               L'arrêt d'urgence et la bascule d'enregistrement restent actifs même quand Dofus n'a pas le focus, et même
               pendant une capture : ce sont les seuls moyens de reprendre la main sans revenir dans cette fenêtre.
@@ -289,6 +358,20 @@
             <CheckBox Content="Émettre un bip au début et à la fin d'un enregistrement"
                       IsChecked="{Binding Settings.RecordingFeedbackSound}" Margin="0,3" />
 
+            <TextBlock Text="Enregistrement" Style="{StaticResource SectionHeader}" />
+            <CheckBox Content="Enregistrer les temps morts entre deux actions"
+                      IsChecked="{Binding Settings.RecordDelays}" Margin="0,3" />
+            <CheckBox Content="Capturer l'image autour de chaque clic, pour que le rejeu retrouve la cible si elle a bougé"
+                      IsChecked="{Binding Settings.AnchorClicksToImages}" Margin="0,3" />
+            <StackPanel Orientation="Horizontal" Margin="0,3">
+              <TextBlock Text="Taille de l'image capturée (px)" Width="240" VerticalAlignment="Center" />
+              <TextBox Text="{Binding Settings.AnchorPatchSize, UpdateSourceTrigger=LostFocus}" Width="80" />
+            </StackPanel>
+            <TextBlock Style="{StaticResource Hint}">
+              Une image plus grande est plus reconnaissable, mais plus longue à chercher et plus sensible à
+              ce qui change autour de la cible.
+            </TextBlock>
+
             <TextBlock Text="Temporisations" Style="{StaticResource SectionHeader}" />
             <StackPanel Orientation="Horizontal" Margin="0,3">
               <TextBlock Text="Après un changement de fenêtre (ms)" Width="240" VerticalAlignment="Center" />
@@ -298,8 +381,13 @@
               <TextBlock Text="Entre deux actions (ms)" Width="240" VerticalAlignment="Center" />
               <TextBox Text="{Binding Settings.ActionDelayMs, UpdateSourceTrigger=LostFocus}" Width="80" />
             </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,3">
+              <TextBlock Text="Rejeu sur l'équipe (ms)" Width="240" VerticalAlignment="Center" />
+              <TextBox Text="{Binding Settings.TeamReplayDelayMs, UpdateSourceTrigger=LostFocus}" Width="80" />
+            </StackPanel>
             <TextBlock Style="{StaticResource Hint}">
               Si des clics se perdent, augmentez le délai après changement de fenêtre : le client a besoin de quelques images avant d'accepter une entrée.
+              Le délai du rejeu sur l'équipe est distinct et plus long : ouvrir une carte ou une liste prend bien plus de temps qu'enchaîner deux clics de sort.
             </TextBlock>
 
             <TextBlock Text="Détection des clients" Style="{StaticResource SectionHeader}" />

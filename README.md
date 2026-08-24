@@ -46,7 +46,8 @@ rejouer sur tous.
    reste active depuis le jeu, y compris pendant une capture : vous n'aurez pas à revenir
    dans cette fenêtre, ce qui polluerait l'enregistrement.
 2. Onglet **Macros**, sélectionnez « Soin de l'équipe » (ou créez-en une et ajoutez une
-   étape « Pour chaque personnage »).
+   étape « Pour chaque personnage »). Les temps morts ne sont pas enregistrés par défaut ;
+   la case est dans les Réglages si vous en voulez.
 3. Basculez sur un personnage, appuyez sur la touche d'enregistrement (un bip confirme),
    cliquez sur le sort de soin puis sur la cible, et appuyez de nouveau pour arrêter
    (deux bips).
@@ -60,7 +61,47 @@ Seuls les clics faits dans un client Dofus sont retenus — l'organizer lui-mêm
 applications sont ignorés.
 
 Les positions sont enregistrées en fraction de la fenêtre et non en pixels de l'écran :
-la macro reste juste si vous déplacez ou redimensionnez vos clients ensuite.
+la macro reste juste si vous déplacez ou redimensionnez vos clients ensuite. Chaque clic
+emporte en plus l'image de ce qu'il visait — au rejeu, l'outil cherche cette image et clique
+là où il la trouve, la position ne servant qu'à délimiter la recherche.
+
+## Téléporter toute l'équipe au même zaap
+
+Le problème : il y a des centaines de zaaps, donc écrire une macro par destination est
+impossible. La réponse est **« Refaire sur l'équipe »** — l'outil n'a pas besoin de savoir de
+quel zaap il s'agit, il refait simplement ce que vous venez de faire.
+
+1. Dans **Réglages**, assignez une touche à « Refaire sur l'équipe ».
+2. **Triez la liste des zaaps à l'identique sur tous vos personnages** (par ordre alphabétique
+   par exemple). C'est la condition qui rend l'ensemble fiable.
+3. Sur votre meneur, appuyez sur la touche (un bip), prenez le zaap normalement, appuyez de
+   nouveau (deux bips). Les autres personnages refont l'enchaînement.
+
+**Passez par la liste des zaaps, pas par la carte du monde.** La carte peut avoir un zoom
+différent selon le personnage, et un même zaap ne s'y trouve alors pas au même endroit ; une
+liste de texte, elle, s'affiche identiquement partout. La reconnaissance d'image ne rattrape
+pas un changement d'échelle.
+
+## Enchaîner un dialogue de PNJ
+
+Même principe, avec une macro cette fois : clic sur le PNJ, **attente sur image** jusqu'à ce
+que le panneau apparaisse, clic sur la réponse, attente, fermeture. L'attente sur image
+remplace les délais devinés — l'ouverture du panneau devient un fait constaté et non un pari
+sur 300 ms.
+
+Cela vaut pour un PNJ dont l'enchaînement est toujours le même. Un dialogue dont les réponses
+varient sort de ce que l'outil sait faire : il ne lit pas le texte, il reconnaît des images.
+
+### À savoir sur la reconnaissance
+
+- Au moment où vous cliquez, l'élément est **survolé**, donc souvent surligné — alors qu'il ne
+  le sera pas quand l'outil le cherchera chez le personnage suivant. C'est pourquoi la
+  ressemblance exigée est volontairement tolérante (85 %). Si une image n'est pas retrouvée,
+  baissez ce seuil dans l'éditeur d'étape ; si c'est la mauvaise qui est trouvée, montez-le.
+- **Une image introuvable ne bloque pas la macro** : l'étape retombe sur sa position
+  enregistrée et le signale dans la barre d'état. Le rejeu continue.
+- L'aperçu affiché dans l'éditeur montre exactement ce qui a été capturé : c'est le premier
+  endroit à regarder quand une étape se comporte mal.
 
 Si des clics se perdent, augmentez « Après un changement de fenêtre » dans les Réglages —
 le client a besoin de quelques images avant d'accepter une entrée.

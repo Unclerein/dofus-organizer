@@ -73,6 +73,75 @@ public class ProfileStoreTests : IDisposable
     }
 
     [Fact]
+    public void Les_nouvelles_etapes_survivent_a_un_aller_retour_sur_disque()
+    {
+        var store = new ProfileStore(PathFor("vision.json"));
+
+        var patch = new DofusOrganizer.Core.Vision.PixelBuffer(4, 3);
+        patch.SetPixel(1, 1, 200, 100, 50);
+        var anchor = DofusOrganizer.Core.Models.ImageAnchor.FromPixelBuffer(patch, 2, 1);
+        anchor.SearchRadius = 320;
+        anchor.MinimumScore = 0.82;
+
+        var profile = new Profile
+        {
+            Macros =
+            {
+                new Macro
+                {
+                    Name = "Zaap",
+                    Steps =
+                    {
+                        new MouseClickStep { Fx = 0.3, Fy = 0.7, Anchor = anchor },
+                        new WaitForImageStep { Fx = 0.4, Fy = 0.2, TimeoutMs = 2500, WaitUntilGone = true, Anchor = anchor },
+                        new ScrollStep { Fx = 0.6, Fy = 0.5, Direction = ScrollDirection.Up, Notches = 7 },
+                    },
+                },
+            },
+        };
+
+        store.Save(profile);
+        var macro = Assert.Single(store.Load().Macros);
+
+        var click = Assert.IsType<MouseClickStep>(macro.Steps[0]);
+        Assert.NotNull(click.Anchor);
+        Assert.Equal(4, click.Anchor!.Width);
+        Assert.Equal(3, click.Anchor.Height);
+        Assert.Equal(2, click.Anchor.OffsetX);
+        Assert.Equal(320, click.Anchor.SearchRadius);
+        Assert.Equal(0.82, click.Anchor.MinimumScore, 3);
+
+        // L'image doit revenir pixel pour pixel : c'est elle qui sera comparée à l'écran.
+        var restored = click.Anchor.ToPixelBuffer();
+        Assert.NotNull(restored);
+        Assert.Equal(patch.Pixels, restored!.Pixels);
+
+        var wait = Assert.IsType<WaitForImageStep>(macro.Steps[1]);
+        Assert.True(wait.WaitUntilGone);
+        Assert.Equal(2500, wait.TimeoutMs);
+        Assert.NotNull(wait.Anchor);
+
+        var scroll = Assert.IsType<ScrollStep>(macro.Steps[2]);
+        Assert.Equal(ScrollDirection.Up, scroll.Direction);
+        Assert.Equal(7, scroll.Notches);
+    }
+
+    [Fact]
+    public void Un_ancrage_abime_ne_fait_pas_planter_la_lecture()
+    {
+        // Le profil est un fichier texte que l'utilisateur peut éditer : une image
+        // tronquée doit faire retomber l'étape sur ses coordonnées, pas lever.
+        var anchor = new DofusOrganizer.Core.Models.ImageAnchor
+        {
+            Width = 8,
+            Height = 8,
+            Pixels = "ceci n'est pas du base64 valide !!",
+        };
+
+        Assert.Null(anchor.ToPixelBuffer());
+    }
+
+    [Fact]
     public void Les_accents_restent_lisibles_dans_le_fichier()
     {
         var path = PathFor("accents.json");

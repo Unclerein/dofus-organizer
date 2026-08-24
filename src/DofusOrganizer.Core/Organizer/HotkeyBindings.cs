@@ -2,7 +2,7 @@ using DofusOrganizer.Core.Models;
 
 namespace DofusOrganizer.Core.Organizer;
 
-public enum HotkeyActionKind { FocusSlot, FocusNext, FocusPrevious, RunMacro, Panic, ToggleRecording }
+public enum HotkeyActionKind { FocusSlot, FocusNext, FocusPrevious, RunMacro, Panic, ToggleRecording, RepeatOnTeam }
 
 public sealed record HotkeyAction(HotkeyActionKind Kind, CharacterSlot? Slot = null, Macro? Macro = null);
 
@@ -23,6 +23,7 @@ public sealed class HotkeyBindings
         // même si l'utilisateur l'a assignée par ailleurs à autre chose.
         Add(table, profile.Settings.PanicHotkey, new HotkeyAction(HotkeyActionKind.Panic));
         Add(table, profile.Settings.ToggleRecordingHotkey, new HotkeyAction(HotkeyActionKind.ToggleRecording));
+        Add(table, profile.Settings.RepeatOnTeamHotkey, new HotkeyAction(HotkeyActionKind.RepeatOnTeam));
         Add(table, profile.Settings.NextCharacterHotkey, new HotkeyAction(HotkeyActionKind.FocusNext));
         Add(table, profile.Settings.PreviousCharacterHotkey, new HotkeyAction(HotkeyActionKind.FocusPrevious));
 
@@ -70,6 +71,7 @@ public sealed class HotkeyBindings
         foreach (var hotkey in new[]
                  {
                      profile.Settings.PanicHotkey, profile.Settings.ToggleRecordingHotkey,
+                     profile.Settings.RepeatOnTeamHotkey,
                      profile.Settings.NextCharacterHotkey, profile.Settings.PreviousCharacterHotkey,
                  })
             if (hotkey is { IsEmpty: false }) yield return hotkey;

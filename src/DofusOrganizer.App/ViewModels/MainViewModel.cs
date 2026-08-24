@@ -58,11 +58,14 @@ public sealed class MainViewModel : ObservableObject
         MoveStepDownCommand = new RelayCommand(() => SelectedMacro?.MoveSelected(+1), () => SelectedMacro?.HasSelection == true);
 
         ToggleRecordingCommand = new RelayCommand(ToggleRecording, () => SelectedMacro is not null);
+        CaptureAnchorCommand = new RelayCommand(async () => await CaptureAnchorAsync(), () => SelectedMacro?.HasSelection == true);
+        ClearAnchorCommand = new RelayCommand(ClearAnchor, () => SelectedMacro?.HasSelection == true);
 
         AssignNextHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Next));
         AssignPreviousHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Previous));
         AssignPanicHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Panic));
         AssignToggleRecordingHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.ToggleRecording));
+        AssignRepeatOnTeamHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.RepeatOnTeam));
         SaveCommand = new RelayCommand(() => { _service.ApplyBindings(); Status = $"Profil enregistré dans {_service.ProfilePath}"; });
         RefreshCommand = new RelayCommand(_service.Refresh);
 
@@ -151,10 +154,13 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand MoveStepUpCommand { get; }
     public RelayCommand MoveStepDownCommand { get; }
     public RelayCommand ToggleRecordingCommand { get; }
+    public RelayCommand CaptureAnchorCommand { get; }
+    public RelayCommand ClearAnchorCommand { get; }
     public RelayCommand AssignNextHotkeyCommand { get; }
     public RelayCommand AssignPreviousHotkeyCommand { get; }
     public RelayCommand AssignPanicHotkeyCommand { get; }
     public RelayCommand AssignToggleRecordingHotkeyCommand { get; }
+    public RelayCommand AssignRepeatOnTeamHotkeyCommand { get; }
     public RelayCommand SaveCommand { get; }
     public RelayCommand RefreshCommand { get; }
 
@@ -306,6 +312,8 @@ public sealed class MainViewModel : ObservableObject
             StepKind.Deplacement => new MouseMoveStep(),
             StepKind.Touche => new KeyStep(),
             StepKind.Attente => new DelayStep(),
+            StepKind.AttenteImage => new WaitForImageStep(),
+            StepKind.Molette => new ScrollStep(),
             StepKind.Focus => new FocusStep(),
             _ => new ForEachCharacterStep(),
         };
@@ -330,12 +338,21 @@ public sealed class MainViewModel : ObservableObject
     private void OnRecordingChanged(bool recording)
     {
         IsRecording = recording;
-        if (recording)
+        if (!recording) return;
+
+        var settings = _service.Profile.Settings;
+
+        if (_service.IsTeamRepeatCapture)
         {
-            Status = _service.Profile.Settings.ToggleRecordingHotkey is { IsEmpty: false } hotkey
-                ? $"Enregistrement en cours — {hotkey} pour arrêter."
-                : "Enregistrement en cours — cliquez de nouveau sur le bouton pour arrêter.";
+            Status = settings.RepeatOnTeamHotkey is { IsEmpty: false } teamKey
+                ? $"Faites l'action sur ce personnage, puis {teamKey} pour la refaire sur les autres."
+                : "Capture pour l'équipe en cours.";
+            return;
         }
+
+        Status = settings.ToggleRecordingHotkey is { IsEmpty: false } hotkey
+            ? $"Enregistrement en cours — {hotkey} pour arrêter."
+            : "Enregistrement en cours — cliquez de nouveau sur le bouton pour arrêter.";
     }
 
     private void OnRecordingFinished(IReadOnlyList<MacroStep> steps)
@@ -368,7 +385,55 @@ public sealed class MainViewModel : ObservableObject
         Status = $"{steps.Count} action(s) enregistrée(s).";
     }
 
-    private enum SettingHotkey { Next, Previous, Panic, ToggleRecording }
+    /// <summary>
+    /// Relève l'image que l'étape sélectionnée devra reconnaître, au prochain clic dans un
+    /// client Dofus. Passer par un vrai clic plutôt que par des coordonnées à saisir : on
+    /// désigne ce qu'on voit.
+    /// </summary>
+    private async Task CaptureAnchorAsync()
+    {
+        var step = SelectedMacro?.SelectedStep;
+        if (step is not MouseClickStep and not WaitForImageStep)
+        {
+            Status = "Sélectionnez d'abord une étape de clic ou d'attente sur image.";
+            return;
+        }
+
+        Status = "Cliquez sur l'élément à reconnaître, dans une fenêtre Dofus.";
+
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var anchor = await _service.CaptureAnchorAsync(timeout.Token);
+            if (anchor is null) return;
+
+            switch (step)
+            {
+                case MouseClickStep click: click.Anchor = anchor; break;
+                case WaitForImageStep wait: wait.Anchor = anchor; break;
+            }
+
+            _service.Save();
+            Status = $"Image de {anchor.Width}×{anchor.Height} px capturée.";
+        }
+        catch (OperationCanceledException)
+        {
+            _service.CancelHotkeyCapture();
+            Status = "Capture d'image annulée.";
+        }
+    }
+
+    private void ClearAnchor()
+    {
+        if (SelectedMacro?.SelectedStep is MouseClickStep click)
+        {
+            click.Anchor = null;
+            _service.Save();
+            Status = "Ancrage retiré : le clic visera sa position enregistrée.";
+        }
+    }
+
+    private enum SettingHotkey { Next, Previous, Panic, ToggleRecording, RepeatOnTeam }
 
     private async Task AssignSettingHotkeyAsync(SettingHotkey which)
     {
@@ -377,6 +442,7 @@ public sealed class MainViewModel : ObservableObject
             SettingHotkey.Next => "passer au personnage suivant",
             SettingHotkey.Previous => "revenir au personnage précédent",
             SettingHotkey.ToggleRecording => "démarrer et arrêter l'enregistrement",
+            SettingHotkey.RepeatOnTeam => "refaire l'action sur le reste de l'équipe",
             _ => "l'arrêt d'urgence",
         };
 
@@ -388,6 +454,7 @@ public sealed class MainViewModel : ObservableObject
             case SettingHotkey.Next: Settings.NextCharacterHotkey = hotkey; break;
             case SettingHotkey.Previous: Settings.PreviousCharacterHotkey = hotkey; break;
             case SettingHotkey.ToggleRecording: Settings.ToggleRecordingHotkey = hotkey; break;
+            case SettingHotkey.RepeatOnTeam: Settings.RepeatOnTeamHotkey = hotkey; break;
             default: Settings.PanicHotkey = hotkey; break;
         }
 
@@ -425,10 +492,11 @@ public sealed class MainViewModel : ObservableObject
             DeleteMacroCommand, AssignMacroHotkeyCommand, ClearMacroHotkeyCommand,
             RunMacroCommand, StopMacroCommand, AddStepCommand, RemoveStepCommand,
             MoveStepUpCommand, MoveStepDownCommand, ToggleRecordingCommand,
+            CaptureAnchorCommand, ClearAnchorCommand,
         ];
 
         foreach (var command in commands) command?.RaiseCanExecuteChanged();
     }
 }
 
-public enum StepKind { Clic, Deplacement, Touche, Attente, Focus, PourChaquePersonnage }
+public enum StepKind { Clic, Deplacement, Touche, Attente, AttenteImage, Molette, Focus, PourChaquePersonnage }

@@ -8,6 +8,11 @@ public sealed class AppSettings : NotifyBase
     private Hotkey? _previousCharacterHotkey;
     private Hotkey? _panicHotkey = new(VirtualKeys.Pause);
     private Hotkey? _toggleRecordingHotkey;
+    private Hotkey? _repeatOnTeamHotkey;
+    private int _teamReplayDelayMs = 600;
+    private bool _recordDelays;
+    private bool _anchorClicksToImages = true;
+    private int _anchorPatchSize = 48;
     private bool _recordingFeedbackSound = true;
     private bool _hotkeysOnlyWhenGameFocused = true;
     private bool _swallowBoundKeys = true;
@@ -66,6 +71,59 @@ public sealed class AppSettings : NotifyBase
     {
         get => _toggleRecordingHotkey;
         set => Set(ref _toggleRecordingHotkey, value);
+    }
+
+    /// <summary>
+    /// Capture une séquence sur le personnage meneur puis la rejoue immédiatement sur tous
+    /// les autres. C'est la réponse à « les autres font la même chose que moi » sans avoir
+    /// à écrire une macro par destination.
+    /// </summary>
+    public Hotkey? RepeatOnTeamHotkey
+    {
+        get => _repeatOnTeamHotkey;
+        set => Set(ref _repeatOnTeamHotkey, value);
+    }
+
+    /// <summary>
+    /// Délai entre deux actions lors d'un rejeu sur l'équipe. Distinct du délai ordinaire :
+    /// les quelques dizaines de millisecondes qui enchaînent des clics de sort ne laissent
+    /// pas à une carte ou à une liste le temps de s'ouvrir.
+    /// </summary>
+    public int TeamReplayDelayMs
+    {
+        get => _teamReplayDelayMs;
+        set => Set(ref _teamReplayDelayMs, Math.Clamp(value, 0, 10000));
+    }
+
+    /// <summary>
+    /// Transformer les temps morts de l'enregistrement en étapes d'attente. Décoché par
+    /// défaut : les hésitations humaines encombrent la macro, et l'attente juste est celle
+    /// sur image.
+    /// </summary>
+    public bool RecordDelays
+    {
+        get => _recordDelays;
+        set => Set(ref _recordDelays, value);
+    }
+
+    /// <summary>
+    /// Capturer, à chaque clic enregistré, le fragment d'écran qui l'entoure. C'est ce qui
+    /// permet au rejeu de retrouver la cible quand elle a bougé chez un autre personnage.
+    /// </summary>
+    public bool AnchorClicksToImages
+    {
+        get => _anchorClicksToImages;
+        set => Set(ref _anchorClicksToImages, value);
+    }
+
+    /// <summary>
+    /// Côté du fragment capturé. Plus grand, il est plus reconnaissable mais plus long à
+    /// chercher et plus sensible à ce qui change autour de la cible.
+    /// </summary>
+    public int AnchorPatchSize
+    {
+        get => _anchorPatchSize;
+        set => Set(ref _anchorPatchSize, Math.Clamp(value, 16, 256));
     }
 
     /// <summary>

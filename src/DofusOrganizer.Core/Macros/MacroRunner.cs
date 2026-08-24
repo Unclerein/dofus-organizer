@@ -25,7 +25,14 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
     /// <summary>Levé à chaque changement d'état, pour que l'interface affiche « macro en cours ».</summary>
     public event Action<bool>? RunningChanged;
 
-    public async Task<MacroResult> RunAsync(Macro macro, CharacterRoster roster, AppSettings settings, CancellationToken cancellationToken)
+    /// <param name="actionDelayOverride">
+    /// Remplace le délai entre actions le temps de cette exécution. Le rejeu sur l'équipe
+    /// enchaîne des interactions d'interface, qui demandent bien plus de temps que des clics
+    /// de sort.
+    /// </param>
+    public async Task<MacroResult> RunAsync(
+        Macro macro, CharacterRoster roster, AppSettings settings, CancellationToken cancellationToken,
+        int? actionDelayOverride = null)
     {
         if (Interlocked.CompareExchange(ref _running, 1, 0) != 0)
         {
@@ -33,7 +40,8 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
         }
 
         RunningChanged?.Invoke(true);
-        var state = new RunState(windows.GetForegroundWindow(), input.GetCursorPosition());
+        var state = new RunState(windows.GetForegroundWindow(), input.GetCursorPosition(),
+            actionDelayOverride ?? settings.ActionDelayMs);
         state.CurrentTarget = state.InitialWindow;
 
         try
@@ -89,7 +97,7 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
                 if (TryResolveTarget(click.Point, click.Anchor, state, out var clickPoint))
                 {
                     input.Click(clickPoint, click.Button, click.Clicks);
-                    await clock.DelayAsync(settings.ActionDelayMs, ct).ConfigureAwait(false);
+                    await clock.DelayAsync(state.ActionDelayMs, ct).ConfigureAwait(false);
                 }
                 break;
 
@@ -101,7 +109,7 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
                 if (TryResolvePoint(scroll.Point, state, out var scrollPoint))
                 {
                     input.Scroll(scrollPoint, scroll.Direction == ScrollDirection.Up ? scroll.Notches : -scroll.Notches);
-                    await clock.DelayAsync(settings.ActionDelayMs, ct).ConfigureAwait(false);
+                    await clock.DelayAsync(state.ActionDelayMs, ct).ConfigureAwait(false);
                 }
                 break;
 
@@ -109,13 +117,13 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
                 if (TryResolvePoint(move.Point, state, out var movePoint))
                 {
                     input.MoveMouse(movePoint);
-                    await clock.DelayAsync(settings.ActionDelayMs, ct).ConfigureAwait(false);
+                    await clock.DelayAsync(state.ActionDelayMs, ct).ConfigureAwait(false);
                 }
                 break;
 
             case KeyStep key:
                 input.SendKey(key.VirtualKey, key.Modifiers, key.Action, settings.UseScanCodes);
-                await clock.DelayAsync(settings.ActionDelayMs, ct).ConfigureAwait(false);
+                await clock.DelayAsync(state.ActionDelayMs, ct).ConfigureAwait(false);
                 break;
 
             case DelayStep delay:
@@ -299,10 +307,11 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
         catch { /* Sur un arrêt d'urgence, échouer ici ne doit rien empêcher. */ }
     }
 
-    private sealed class RunState(nint initialWindow, ScreenPoint initialCursor)
+    private sealed class RunState(nint initialWindow, ScreenPoint initialCursor, int actionDelayMs)
     {
         public nint InitialWindow { get; } = initialWindow;
         public ScreenPoint InitialCursor { get; } = initialCursor;
+        public int ActionDelayMs { get; } = actionDelayMs;
         public nint CurrentTarget { get; set; }
         public int StepsExecuted { get; set; }
     }

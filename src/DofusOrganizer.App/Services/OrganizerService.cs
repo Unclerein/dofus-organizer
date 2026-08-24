@@ -1,6 +1,7 @@
 using System.Windows.Threading;
 using DofusOrganizer.Core.Abstractions;
 using DofusOrganizer.Core.Config;
+using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Macros;
 using DofusOrganizer.Core.Models;
 using DofusOrganizer.Core.Organizer;
@@ -36,7 +37,7 @@ public sealed class OrganizerService : IDisposable, ILogSink
         _dispatcher = new HotkeyDispatcher(_windows.GetForegroundWindow, IsGameWindow);
         _dispatcher.ActionTriggered += OnHotkey;
 
-        Recorder = new MacroRecorder(_windows, SlotIndexOf, _dispatcher.IsRecordingToggle);
+        Recorder = new MacroRecorder(_windows, SlotIndexOf, _dispatcher.IsRecordingControl);
 
         // Une seconde suffit : ouvrir un client prend plus de temps que ça, et un
         // intervalle plus court ferait tourner une énumération de fenêtres pour rien.
@@ -65,8 +66,20 @@ public sealed class OrganizerService : IDisposable, ILogSink
     /// </summary>
     public event Action<bool>? RecordingChanged;
 
-    /// <summary>Levé à la fin d'une capture, avec les étapes obtenues.</summary>
+    /// <summary>
+    /// Levé à la fin d'une capture destinée à une macro, avec les étapes obtenues.
+    /// Une capture destinée au rejeu sur l'équipe ne passe pas par là : elle part
+    /// directement au moteur.
+    /// </summary>
     public event Action<IReadOnlyList<MacroStep>>? RecordingFinished;
+
+    /// <summary>Ce à quoi sert la capture en cours.</summary>
+    private enum CapturePurpose { Macro, TeamRepeat }
+
+    private CapturePurpose _purpose = CapturePurpose.Macro;
+
+    /// <summary>Vrai si la capture en cours alimentera un rejeu sur l'équipe.</summary>
+    public bool IsTeamRepeatCapture => Recorder.IsRecording && _purpose == CapturePurpose.TeamRepeat;
     public event Action<string>? LogMessage;
 
     /// <summary>Signalé quand un client Dofus tourne avec plus de privilèges que l'organizer.</summary>
@@ -150,29 +163,97 @@ public sealed class OrganizerService : IDisposable, ILogSink
     /// que de déclencher une autre macro — la bascule d'enregistrement et l'arrêt
     /// d'urgence restant seuls actifs.
     /// </summary>
-    public void StartRecording()
-    {
-        if (Recorder.IsRecording) return;
-
-        _dispatcher.Enabled = false;
-        Recorder.Start();
-        Notify(recording: true);
-    }
+    public void StartRecording() => StartCapture(CapturePurpose.Macro);
 
     public void StopRecording()
     {
         if (!Recorder.IsRecording) return;
 
-        var steps = Recorder.Stop();
-        _dispatcher.Enabled = true;
-        Notify(recording: false);
-        _uiDispatcher.BeginInvoke(() => RecordingFinished?.Invoke(steps));
+        var steps = StopCapture();
+        if (_purpose == CapturePurpose.Macro)
+        {
+            _uiDispatcher.BeginInvoke(() => RecordingFinished?.Invoke(steps));
+        }
     }
 
     public void ToggleRecording()
     {
         if (Recorder.IsRecording) StopRecording();
         else StartRecording();
+    }
+
+    /// <summary>
+    /// Capture une séquence sur le personnage meneur, puis la rejoue sur tous les autres.
+    /// Répond au besoin « les autres font la même chose que moi » sans exiger une macro par
+    /// destination : l'outil n'a pas à savoir de quel zaap ni de quel dialogue il s'agit.
+    /// </summary>
+    public void ToggleTeamRepeat()
+    {
+        if (Recorder.IsRecording && _purpose == CapturePurpose.TeamRepeat)
+        {
+            var steps = StopCapture();
+            _ = RepeatOnTeamAsync(steps);
+            return;
+        }
+
+        if (Recorder.IsRecording) StopRecording();
+        StartCapture(CapturePurpose.TeamRepeat);
+    }
+
+    private void StartCapture(CapturePurpose purpose)
+    {
+        if (Recorder.IsRecording) return;
+
+        _purpose = purpose;
+        ApplyRecorderSettings();
+
+        // Les raccourcis sont mis en sommeil le temps de la capture, pour que les touches
+        // frappées finissent dans la séquence plutôt que de déclencher autre chose. Seuls
+        // l'arrêt d'urgence et les touches de capture restent actifs.
+        _dispatcher.Enabled = false;
+        Recorder.Start();
+        Notify(recording: true);
+    }
+
+    private IReadOnlyList<MacroStep> StopCapture()
+    {
+        var steps = Recorder.Stop();
+        _dispatcher.Enabled = true;
+        Notify(recording: false);
+        return steps;
+    }
+
+    private void ApplyRecorderSettings()
+    {
+        var settings = Profile.Settings;
+        Recorder.CaptureDelays = settings.RecordDelays;
+        Recorder.AnchorClicks = settings.AnchorClicksToImages;
+        Recorder.AnchorPatchSize = settings.AnchorPatchSize;
+    }
+
+    private async Task RepeatOnTeamAsync(IReadOnlyList<MacroStep> steps)
+    {
+        if (steps.Count == 0)
+        {
+            Log("Aucune action capturée : rien à refaire sur l'équipe.");
+            return;
+        }
+
+        // La séquence est enveloppée dans une boucle qui saute le personnage ayant le focus,
+        // c'est-à-dire le meneur : il vient déjà de faire l'action lui-même.
+        var loop = new ForEachCharacterStep { SkipCurrentWindow = true };
+        foreach (var step in steps) loop.Steps.Add(step);
+
+        var macro = new Macro
+        {
+            Name = "Refaire sur l'équipe",
+            RestoreInitialWindow = true,
+            RestoreCursorPosition = true,
+            Steps = { loop },
+        };
+
+        Log($"Rejeu de {steps.Count} action(s) sur le reste de l'équipe…");
+        await RunMacroAsync(macro, Profile.Settings.TeamReplayDelayMs).ConfigureAwait(false);
     }
 
     private void Notify(bool recording)
@@ -199,6 +280,36 @@ public sealed class OrganizerService : IDisposable, ILogSink
         {
             // Une machine sans périphérique audio ne doit pas empêcher d'enregistrer.
         }
+    }
+
+    /// <summary>
+    /// Attend le prochain clic de l'utilisateur dans un client suivi et relève le fragment
+    /// d'écran qui l'entoure. Même principe que la capture de raccourci : on ne demande pas
+    /// des coordonnées à saisir, on regarde ce que la personne désigne.
+    /// </summary>
+    public async Task<ImageAnchor?> CaptureAnchorAsync(CancellationToken cancellationToken)
+    {
+        var point = await _dispatcher.CaptureNextClickAsync(cancellationToken).ConfigureAwait(false);
+
+        nint target = _windows.WindowUnder(point);
+        if (SlotIndexOf(target) < 0)
+        {
+            Log("Le clic doit être fait dans une fenêtre Dofus détectée.");
+            return null;
+        }
+
+        if (!_windows.TryGetClientBounds(target, out var bounds) || bounds.IsEmpty) return null;
+
+        int half = Math.Max(8, Profile.Settings.AnchorPatchSize / 2);
+        var area = ScreenRect.Around(point, half, bounds);
+        var patch = _windows.CaptureScreen(area);
+        if (patch is null)
+        {
+            Log("Capture d'image impossible à cet endroit.");
+            return null;
+        }
+
+        return ImageAnchor.FromPixelBuffer(patch, point.X - area.X, point.Y - area.Y);
     }
 
     public Task<Hotkey> CaptureHotkeyAsync(CancellationToken cancellationToken)
@@ -230,7 +341,9 @@ public sealed class OrganizerService : IDisposable, ILogSink
         _windows.Activate(entry.Window.Handle);
     }
 
-    public async Task RunMacroAsync(Macro macro)
+    public Task RunMacroAsync(Macro macro) => RunMacroAsync(macro, actionDelayOverride: null);
+
+    public async Task RunMacroAsync(Macro macro, int? actionDelayOverride)
     {
         // La macro précédente est annulée avant d'en lancer une autre : c'est le
         // comportement attendu quand on presse la mauvaise touche et qu'on se reprend.
@@ -238,7 +351,8 @@ public sealed class OrganizerService : IDisposable, ILogSink
         _macroCancellation?.Dispose();
         _macroCancellation = new CancellationTokenSource();
 
-        var result = await _runner.RunAsync(macro, Roster, Profile.Settings, _macroCancellation.Token)
+        var result = await _runner
+            .RunAsync(macro, Roster, Profile.Settings, _macroCancellation.Token, actionDelayOverride)
             .ConfigureAwait(false);
 
         if (result.Outcome == MacroOutcome.Failed) Log($"Échec : {result.Message}");
@@ -263,6 +377,7 @@ public sealed class OrganizerService : IDisposable, ILogSink
                 case HotkeyActionKind.FocusSlot when action.Slot is not null: FocusSlot(action.Slot); break;
                 case HotkeyActionKind.Panic: CancelMacro(); break;
                 case HotkeyActionKind.ToggleRecording: ToggleRecording(); break;
+                case HotkeyActionKind.RepeatOnTeam: ToggleTeamRepeat(); break;
                 case HotkeyActionKind.RunMacro when action.Macro is not null:
                     _ = RunMacroAsync(action.Macro);
                     break;

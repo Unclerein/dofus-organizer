@@ -32,8 +32,28 @@ public sealed class MacroRecorder(
     private nint _lastWindow;
     private bool _recording;
 
-    /// <summary>Insérer les temps d'attente réels entre deux actions.</summary>
-    public bool CaptureDelays { get; set; } = true;
+    /// <summary>
+    /// Insérer les temps d'attente réels entre deux actions. Désactivé par défaut : les
+    /// hésitations humaines encombrent la macro sans rien lui apporter, et l'attente juste
+    /// est celle sur image.
+    /// </summary>
+    public bool CaptureDelays { get; set; }
+
+    /// <summary>
+    /// Capturer le fragment d'écran autour de chaque clic, pour que le rejeu retrouve la
+    /// cible même si elle a bougé chez un autre personnage.
+    /// </summary>
+    public bool AnchorClicks { get; set; } = true;
+
+    /// <summary>Côté du fragment capturé autour d'un clic.</summary>
+    public int AnchorPatchSize { get; set; } = 48;
+
+    /// <summary>
+    /// Ressemblance exigée au rejeu. Un peu plus tolérante que le réglage par défaut de la
+    /// reconnaissance : au moment du clic l'élément est survolé, donc souvent surligné, ce
+    /// qu'il ne sera pas quand on le cherchera chez le personnage suivant.
+    /// </summary>
+    public double AnchorMinimumScore { get; set; } = 0.85;
 
     /// <summary>Attentes plus courtes que ce seuil : elles n'apportent rien et alourdissent la macro.</summary>
     public int MinimumDelayMs { get; set; } = 60;
@@ -99,7 +119,10 @@ public sealed class MacroRecorder(
 
     private bool OnMouse(MouseEvent e)
     {
-        if (!_recording || !e.IsDown || e.IsInjected || e.Button is null) return false;
+        if (!_recording || e.IsInjected) return false;
+
+        if (e.WheelNotches != 0) return OnWheel(e);
+        if (!e.IsDown || e.Button is null) return false;
 
         // Le clic est rapporté à la fenêtre réellement située sous le curseur, et non à
         // celle au premier plan : le hook se déclenche avant que le focus ne change, donc
@@ -117,7 +140,52 @@ public sealed class MacroRecorder(
         AddDelay();
 
         var normalized = CoordinateMapper.ToNormalized(e.Point, bounds);
-        Add(new MouseClickStep { Fx = normalized.Fx, Fy = normalized.Fy, Button = e.Button.Value });
+        Add(new MouseClickStep
+        {
+            Fx = normalized.Fx,
+            Fy = normalized.Fy,
+            Button = e.Button.Value,
+            Anchor = AnchorClicks ? CaptureAnchor(e.Point, bounds) : null,
+        });
+        return false;
+    }
+
+    /// <summary>
+    /// Relève le fragment d'écran entourant le point cliqué. La capture a lieu au moment de
+    /// l'appui, donc avant que le jeu ne réagisse : c'est bien la cible qui est photographiée,
+    /// pas ce qu'elle devient une fois cliquée.
+    /// </summary>
+    private ImageAnchor? CaptureAnchor(ScreenPoint point, ClientBounds bounds)
+    {
+        int half = Math.Max(8, AnchorPatchSize / 2);
+        var area = ScreenRect.Around(point, half, bounds);
+        if (area.IsEmpty) return null;
+
+        var patch = windows.CaptureScreen(area);
+        if (patch is null) return null;
+
+        var anchor = ImageAnchor.FromPixelBuffer(patch, point.X - area.X, point.Y - area.Y);
+        anchor.MinimumScore = AnchorMinimumScore;
+        return anchor;
+    }
+
+    private bool OnWheel(MouseEvent e)
+    {
+        nint target = windows.WindowUnder(e.Point);
+        if (slotIndexOf(target) < 0) return false;
+        if (!windows.TryGetClientBounds(target, out var bounds) || bounds.IsEmpty) return false;
+
+        TrackWindowChange();
+        AddDelay();
+
+        var normalized = CoordinateMapper.ToNormalized(e.Point, bounds);
+        Add(new ScrollStep
+        {
+            Fx = normalized.Fx,
+            Fy = normalized.Fy,
+            Direction = e.WheelNotches > 0 ? ScrollDirection.Up : ScrollDirection.Down,
+            Notches = Math.Abs(e.WheelNotches),
+        });
         return false;
     }
 
