@@ -151,6 +151,11 @@ internal static class NativeMethods
     /// <summary>Marque les événements générés par une injection logicielle, la nôtre comprise.</summary>
     internal const uint LLKHF_INJECTED = 0x00000010;
 
+    internal const int SM_CXDOUBLECLK = 36;
+    internal const int SM_CYDOUBLECLK = 37;
+    internal const int SM_CXDRAG = 68;
+    internal const int SM_CYDRAG = 69;
+
     internal const int SM_XVIRTUALSCREEN = 76;
     internal const int SM_YVIRTUALSCREEN = 77;
     internal const int SM_CXVIRTUALSCREEN = 78;
@@ -224,6 +229,9 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern int GetSystemMetrics(int index);
+
+    [DllImport("user32.dll")]
+    internal static extern uint GetDoubleClickTime();
 
     [DllImport("user32.dll", SetLastError = true)]
     internal static extern uint SendInput(uint count, INPUT[] inputs, int size);

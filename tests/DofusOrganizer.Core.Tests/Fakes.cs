@@ -13,6 +13,7 @@ public abstract record RecordedAction
     public sealed record Move(AbsolutePoint Point) : RecordedAction;
     public sealed record Key(int VirtualKey, KeyModifiers Modifiers, KeyAction Action) : RecordedAction;
     public sealed record Wheel(AbsolutePoint Point, int Notches) : RecordedAction;
+    public sealed record ButtonPress(AbsolutePoint Point, MouseButton Which, bool Down) : RecordedAction;
     public sealed record Delay(int Milliseconds) : RecordedAction;
     public sealed record Cursor(ScreenPoint Point) : RecordedAction;
 }
@@ -100,6 +101,9 @@ public sealed class FakeInputSender(List<RecordedAction> actions) : IInputSender
         => actions.Add(new RecordedAction.Key(virtualKey, modifiers, action));
 
     public void Scroll(AbsolutePoint point, int notches) => actions.Add(new RecordedAction.Wheel(point, notches));
+
+    public void PressButton(AbsolutePoint point, MouseButton button, bool down)
+        => actions.Add(new RecordedAction.ButtonPress(point, button, down));
 
     public ScreenPoint GetCursorPosition() => Cursor;
 

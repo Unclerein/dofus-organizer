@@ -16,6 +16,12 @@ public interface IInputSender
     /// <summary>Molette au point donné. Crans positifs vers le haut, négatifs vers le bas.</summary>
     void Scroll(AbsolutePoint point, int notches);
 
+    /// <summary>
+    /// Enfonce ou relâche un bouton à un point donné, sans faire l'autre moitié. Nécessaire
+    /// au glisser-déposer, où le bouton doit rester tenu pendant les déplacements.
+    /// </summary>
+    void PressButton(AbsolutePoint point, MouseButton button, bool down);
+
     ScreenPoint GetCursorPosition();
 
     void SetCursorPosition(ScreenPoint point);

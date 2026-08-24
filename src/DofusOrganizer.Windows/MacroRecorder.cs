@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using DofusOrganizer.Core.Abstractions;
 using DofusOrganizer.Core.Geometry;
+using DofusOrganizer.Core.Macros;
 using DofusOrganizer.Core.Models;
 using DofusOrganizer.Windows.Hooks;
+using static DofusOrganizer.Windows.Native.NativeMethods;
 
 namespace DofusOrganizer.Windows;
 
@@ -31,6 +33,14 @@ public sealed class MacroRecorder(
 
     private nint _lastWindow;
     private bool _recording;
+
+    /// <summary>Dernier appui enregistré, le temps de savoir si le suivant le prolonge.</summary>
+    private RecordedClick? _lastClick;
+
+    /// <summary>Étape produite par cet appui, à compléter au relâchement si c'était un glisser.</summary>
+    private MouseClickStep? _pendingClick;
+    private ScreenPoint _pressedAt;
+    private ClientBounds _pressedIn;
 
     /// <summary>
     /// Insérer les temps d'attente réels entre deux actions. Désactivé par défaut : les
@@ -83,6 +93,8 @@ public sealed class MacroRecorder(
         if (_recording) return;
 
         _steps.Clear();
+        _lastClick = null;
+        _pendingClick = null;
         _lastWindow = windows.GetForegroundWindow();
         _sinceLastStep.Restart();
         _recording = true;
@@ -135,7 +147,8 @@ public sealed class MacroRecorder(
         if (!_recording || e.IsInjected) return false;
 
         if (e.WheelNotches != 0) return OnWheel(e);
-        if (!e.IsDown || e.Button is null) return false;
+        if (e.Button is null) return false;
+        if (!e.IsDown) return OnRelease(e);
 
         // Le clic est rapporté à la fenêtre réellement située sous le curseur, et non à
         // celle au premier plan : le hook se déclenche avant que le focus ne change, donc
@@ -152,16 +165,97 @@ public sealed class MacroRecorder(
         TrackWindowChange();
         AddDelay();
 
+        long now = Environment.TickCount64;
+
+        // Un double-clic arrive comme deux appuis distincts. Non reconnu, il devient deux
+        // étapes que le rejeu espace du délai configuré — bien au-delà du seuil de Windows —
+        // et le jeu ne voit alors que deux clics isolés.
+        if (_pendingClick is null
+            && _steps.Count > 0 && _steps[^1] is MouseClickStep previous
+            && ClickMerging.ContinuesClick(_lastClick, e.Button.Value, e.Point, now, previous.Clicks, Thresholds()))
+        {
+            previous.Clicks++;
+            _lastClick = new RecordedClick(e.Button.Value, e.Point, now);
+            RememberPress(previous, e.Point, bounds);
+            StepRecorded?.Invoke(previous);
+            return false;
+        }
+
         var normalized = CoordinateMapper.ToNormalized(e.Point, bounds);
-        Add(new MouseClickStep
+        var step = new MouseClickStep
         {
             Fx = normalized.Fx,
             Fy = normalized.Fy,
             Button = e.Button.Value,
             Anchor = AnchorClicks ? CaptureAnchor(e.Point, bounds) : null,
-        });
+        };
+
+        _lastClick = new RecordedClick(e.Button.Value, e.Point, now);
+        RememberPress(step, e.Point, bounds);
+        Add(step);
         return false;
     }
+
+    private void RememberPress(MouseClickStep step, ScreenPoint point, ClientBounds bounds)
+    {
+        _pendingClick = step;
+        _pressedAt = point;
+        _pressedIn = bounds;
+    }
+
+    /// <summary>
+    /// Au relâchement, un curseur qui s'est déplacé signe un glisser et non un clic :
+    /// l'étape déjà ajoutée est remplacée. C'est ce qui permet de capturer le déplacement
+    /// d'un panneau que le système ne connaît pas comme une fenêtre.
+    /// </summary>
+    private bool OnRelease(MouseEvent e)
+    {
+        var pending = _pendingClick;
+        _pendingClick = null;
+
+        if (pending is null || e.Button != pending.Button) return false;
+        if (!ClickMerging.IsDrag(_pressedAt, e.Point, Thresholds())) return false;
+
+        int index = _steps.IndexOf(pending);
+        if (index < 0) return false;
+
+        var destination = CoordinateMapper.ToNormalized(e.Point, _pressedIn);
+        var drag = new MouseDragStep
+        {
+            Fx = pending.Fx,
+            Fy = pending.Fy,
+            ToFx = destination.Fx,
+            ToFy = destination.Fy,
+            Button = pending.Button,
+            Anchor = pending.Anchor,
+        };
+
+        // Le panneau saisi peut s'ouvrir loin de là chez un autre personnage : la recherche
+        // doit porter bien plus large que pour un clic sur un élément à sa place habituelle.
+        if (drag.Anchor is not null) drag.Anchor.SearchRadius = DragSearchRadius;
+
+        _steps[index] = drag;
+
+        // Un glisser n'est pas un appui susceptible d'être prolongé en double-clic.
+        _lastClick = null;
+
+        StepRecorded?.Invoke(drag);
+        return false;
+    }
+
+    /// <summary>Rayon de recherche donné à l'ancrage d'un glisser.</summary>
+    private const int DragSearchRadius = 500;
+
+    /// <summary>
+    /// Seuils de double-clic et de glisser tels que l'utilisateur les a réglés. Les figer
+    /// produirait une capture qui ne correspond pas à sa façon de cliquer.
+    /// </summary>
+    private static InputThresholds Thresholds() => new(
+        (int)GetDoubleClickTime(),
+        GetSystemMetrics(SM_CXDOUBLECLK),
+        GetSystemMetrics(SM_CYDOUBLECLK),
+        GetSystemMetrics(SM_CXDRAG),
+        GetSystemMetrics(SM_CYDRAG));
 
     /// <summary>
     /// Relève le fragment d'écran entourant le point cliqué. La capture a lieu au moment de

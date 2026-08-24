@@ -60,6 +60,18 @@ public sealed class SendInputSender : IInputSender
         if (inputs.Count > 0) Send([.. inputs]);
     }
 
+    public void PressButton(AbsolutePoint point, MouseButton button, bool down)
+    {
+        (uint press, uint release) = button switch
+        {
+            MouseButton.Right => (MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP),
+            MouseButton.Middle => (MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP),
+            _ => (MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP),
+        };
+
+        Send([MouseInput(point, down ? press : release)]);
+    }
+
     public void Scroll(AbsolutePoint point, int notches)
     {
         if (notches == 0) return;

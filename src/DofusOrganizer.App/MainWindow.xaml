@@ -186,6 +186,47 @@
                    </StackPanel>
                   </DataTemplate>
 
+                  <DataTemplate DataType="{x:Type models:MouseDragStep}">
+                   <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="Bouton" VerticalAlignment="Center" Margin="0,0,6,0" />
+                      <ComboBox SelectedValue="{Binding Button}" Width="90" Margin="0,0,14,0"
+                                ItemsSource="{x:Static vm:Choices.MouseButtons}"
+                                SelectedValuePath="Value" DisplayMemberPath="Label" />
+                      <TextBlock Text="Saisir à" VerticalAlignment="Center" Margin="0,0,6,0" />
+                      <TextBox Text="{Binding Fx, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="66" Margin="0,0,4,0" />
+                      <TextBox Text="{Binding Fy, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="66" Margin="0,0,14,0" />
+                      <TextBlock Text="Déposer à" VerticalAlignment="Center" Margin="0,0,6,0" />
+                      <TextBox Text="{Binding ToFx, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="66" Margin="0,0,4,0" />
+                      <TextBox Text="{Binding ToFy, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="66" Margin="0,0,14,0" />
+                      <TextBlock Text="Étapes du trajet" VerticalAlignment="Center" Margin="0,0,6,0" />
+                      <TextBox Text="{Binding IntermediateMoves, UpdateSourceTrigger=LostFocus}" Width="46" />
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0">
+                      Le point de saisie mérite presque toujours une image : si le panneau s'ouvre ailleurs chez un autre
+                      personnage, saisir à une position fixe ne l'attraperait pas. Le point de dépôt, lui, reste fixe — c'est
+                      ce qui aligne le panneau identiquement partout.
+                    </TextBlock>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                      <Image Source="{Binding Anchor, Converter={StaticResource AnchorPreview}}"
+                             Width="96" Height="48" Stretch="Uniform" Margin="0,0,10,0"
+                             RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                      <StackPanel>
+                        <TextBlock Text="{Binding Anchor, Converter={StaticResource AnchorSummary}}"
+                                   Foreground="#666" TextWrapping="Wrap" MaxWidth="330" />
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                          <Button Content="Capturer l'image"
+                                  Command="{Binding DataContext.CaptureAnchorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  MinWidth="140" />
+                          <Button Content="Retirer l'ancrage"
+                                  Command="{Binding DataContext.ClearAnchorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  MinWidth="140" Margin="0" />
+                        </StackPanel>
+                      </StackPanel>
+                    </StackPanel>
+                   </StackPanel>
+                  </DataTemplate>
+
                   <DataTemplate DataType="{x:Type models:MouseMoveStep}">
                     <StackPanel Orientation="Horizontal">
                       <TextBlock Text="X" VerticalAlignment="Center" Margin="0,0,6,0" />

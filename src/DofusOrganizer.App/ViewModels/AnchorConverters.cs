@@ -20,8 +20,11 @@ public sealed class AnchorPreviewConverter : IValueConverter
         var buffer = anchor.ToPixelBuffer();
         if (buffer is null) return null;
 
+        // Bgr32 et non Bgra32 : les ancrages capturés avant que l'opacité ne soit corrigée
+        // portent un canal alpha nul et resteraient invisibles. Ce format l'ignore, donc les
+        // images déjà enregistrées s'affichent sans avoir à les recapturer.
         var bitmap = BitmapSource.Create(
-            buffer.Width, buffer.Height, 96, 96, PixelFormats.Bgra32, null,
+            buffer.Width, buffer.Height, 96, 96, PixelFormats.Bgr32, null,
             buffer.Pixels, buffer.Width * Core.Vision.PixelBuffer.BytesPerPixel);
 
         bitmap.Freeze();

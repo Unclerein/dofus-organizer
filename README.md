@@ -88,6 +88,24 @@ différent selon le personnage, et un même zaap ne s'y trouve alors pas au mêm
 liste de texte, elle, s'affiche identiquement partout. La reconnaissance d'image ne rattrape
 pas un changement d'échelle.
 
+## Aligner un panneau identiquement sur tous les personnages
+
+La fenêtre listant les zaaps se déplace au clic gauche maintenu. Pour qu'elle soit au même
+endroit chez tout le monde — condition pour que les positions de clic se correspondent —
+enregistrez ce déplacement une fois :
+
+1. Ouvrez le panneau sur votre meneur, lancez la capture, **faites glisser le panneau à la main**
+   jusqu'à sa place, arrêtez la capture.
+2. L'étape apparaît comme « Glisser depuis … jusqu'à … ». Vérifiez dans son aperçu que l'image
+   de saisie montre bien un morceau reconnaissable du panneau — sa barre de titre par exemple.
+3. Rejouez sur l'équipe : chaque personnage retrouve son panneau à son apparence, le saisit là,
+   et le dépose à la même position.
+
+C'est un panneau dessiné par le jeu, pas une fenêtre du système : Windows ne peut pas le
+déplacer, seul le glisser-déposer le peut. Le point de saisie doit donc être ancré à une image,
+le panneau ne s'ouvrant pas forcément au même endroit chez chacun — mais le point de dépôt reste
+fixe, et c'est cela qui aligne tout le monde.
+
 ## Enchaîner un dialogue de PNJ
 
 Même principe, avec une macro cette fois : clic sur le PNJ, **attente sur image** jusqu'à ce
@@ -113,6 +131,10 @@ varient sort de ce que l'outil sait faire : il ne lit pas le texte, il reconnaî
   enregistrée et le signale dans la barre d'état. Le rejeu continue.
 - L'aperçu affiché dans l'éditeur montre exactement ce qui a été capturé : c'est le premier
   endroit à regarder quand une étape se comporte mal.
+- Un **double-clic** est reconnu comme tel à la capture et rejoué en un seul geste. Sans cela il
+  deviendrait deux étapes que le rejeu espace du délai configuré, et le jeu n'y verrait que deux
+  clics isolés. L'étape s'affiche alors « ×2 » ; le champ **Répétitions** permet aussi de le
+  régler à la main.
 
 Si des clics se perdent, augmentez « Après un changement de fenêtre » dans les Réglages —
 le client a besoin de quelques images avant d'accepter une entrée.

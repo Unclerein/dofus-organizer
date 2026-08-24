@@ -57,7 +57,18 @@ public static class ScreenCapture
             };
 
             int copied = GetDIBits(memory, bitmap, 0, (uint)area.Height, buffer.Pixels, ref info, DIB_RGB_COLORS);
-            return copied == 0 ? null : buffer;
+            if (copied == 0) return null;
+
+            // GetDIBits ne définit pas le quatrième octet en 32 bits BI_RGB : il reste à zéro,
+            // c'est-à-dire totalement transparent. La reconnaissance n'en tient pas compte,
+            // mais un aperçu affiché tel quel serait invisible et l'image rangée dans le
+            // profil ne serait qu'à moitié définie.
+            for (int offset = 3; offset < buffer.Pixels.Length; offset += PixelBuffer.BytesPerPixel)
+            {
+                buffer.Pixels[offset] = 255;
+            }
+
+            return buffer;
         }
         finally
         {

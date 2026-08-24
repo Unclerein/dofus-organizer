@@ -40,6 +40,7 @@ public static class Choices
     public static IReadOnlyList<Choice<StepKind>> StepKinds { get; } =
     [
         new(StepKind.Clic, "Clic"),
+        new(StepKind.Glisser, "Glisser-déposer"),
         new(StepKind.Deplacement, "Déplacer la souris"),
         new(StepKind.Touche, "Touche"),
         new(StepKind.Attente, "Attente"),

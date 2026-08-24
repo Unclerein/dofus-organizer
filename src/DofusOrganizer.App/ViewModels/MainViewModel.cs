@@ -337,6 +337,7 @@ public sealed class MainViewModel : ObservableObject
         MacroStep step = NewStepKind switch
         {
             StepKind.Clic => new MouseClickStep(),
+            StepKind.Glisser => new MouseDragStep(),
             StepKind.Deplacement => new MouseMoveStep(),
             StepKind.Touche => new KeyStep(),
             StepKind.Attente => new DelayStep(),
@@ -421,9 +422,9 @@ public sealed class MainViewModel : ObservableObject
     private async Task CaptureAnchorAsync()
     {
         var step = SelectedMacro?.SelectedStep;
-        if (step is not MouseClickStep and not WaitForImageStep)
+        if (step is not PointerStep)
         {
-            Status = "Sélectionnez d'abord une étape de clic ou d'attente sur image.";
+            Status = "Sélectionnez d'abord une étape qui vise un point à l'écran.";
             return;
         }
 
@@ -435,11 +436,7 @@ public sealed class MainViewModel : ObservableObject
             var anchor = await _service.CaptureAnchorAsync(timeout.Token);
             if (anchor is null) return;
 
-            switch (step)
-            {
-                case MouseClickStep click: click.Anchor = anchor; break;
-                case WaitForImageStep wait: wait.Anchor = anchor; break;
-            }
+            ((PointerStep)step).Anchor = anchor;
 
             _service.Save();
             Status = $"Image de {anchor.Width}×{anchor.Height} px capturée.";
@@ -453,9 +450,9 @@ public sealed class MainViewModel : ObservableObject
 
     private void ClearAnchor()
     {
-        if (SelectedMacro?.SelectedStep is MouseClickStep click)
+        if (SelectedMacro?.SelectedStep is PointerStep pointer)
         {
-            click.Anchor = null;
+            pointer.Anchor = null;
             _service.Save();
             Status = "Ancrage retiré : le clic visera sa position enregistrée.";
         }
@@ -527,4 +524,4 @@ public sealed class MainViewModel : ObservableObject
     }
 }
 
-public enum StepKind { Clic, Deplacement, Touche, Attente, AttenteImage, Molette, Focus, PourChaquePersonnage }
+public enum StepKind { Clic, Glisser, Deplacement, Touche, Attente, AttenteImage, Molette, Focus, PourChaquePersonnage }

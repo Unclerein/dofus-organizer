@@ -101,6 +101,10 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
                 }
                 break;
 
+            case MouseDragStep drag:
+                await DragAsync(drag, state, ct).ConfigureAwait(false);
+                break;
+
             case WaitForImageStep wait:
                 await WaitForImageAsync(wait, state, ct).ConfigureAwait(false);
                 break;
@@ -250,6 +254,50 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
             area.X + match.Value.X + anchor.OffsetX,
             area.Y + match.Value.Y + anchor.OffsetY);
     }
+
+    /// <summary>
+    /// Saisit un point, déplace en maintenant le bouton, puis relâche.
+    ///
+    /// Le trajet est parcouru par petits pas plutôt qu'en un saut : beaucoup d'interfaces
+    /// n'entament un déplacement qu'en voyant le curseur bouger, et ignorent une position
+    /// qui change d'un coup. Le bouton est relâché même si une étape intermédiaire échoue,
+    /// sans quoi il resterait enfoncé et l'utilisateur se retrouverait à traîner un panneau.
+    /// </summary>
+    private async Task DragAsync(MouseDragStep step, RunState state, CancellationToken ct)
+    {
+        if (!TryResolveTarget(step.Point, step.Anchor, state, out var from)) return;
+        if (!TryResolvePoint(step.Destination, state, out var to)) return;
+
+        input.MoveMouse(from);
+        await clock.DelayAsync(state.ActionDelayMs, ct).ConfigureAwait(false);
+
+        input.PressButton(from, step.Button, down: true);
+
+        try
+        {
+            await clock.DelayAsync(state.ActionDelayMs, ct).ConfigureAwait(false);
+
+            for (int move = 1; move <= step.IntermediateMoves; move++)
+            {
+                double progress = (double)move / (step.IntermediateMoves + 1);
+                input.MoveMouse(new AbsolutePoint(
+                    (int)Math.Round(from.X + (to.X - from.X) * progress),
+                    (int)Math.Round(from.Y + (to.Y - from.Y) * progress)));
+
+                await clock.DelayAsync(DragMoveIntervalMs, ct).ConfigureAwait(false);
+            }
+
+            input.MoveMouse(to);
+            await clock.DelayAsync(state.ActionDelayMs, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            input.PressButton(to, step.Button, down: false);
+        }
+    }
+
+    /// <summary>Attente entre deux positions d'un glisser, pour que le trajet reste suivi.</summary>
+    private const int DragMoveIntervalMs = 15;
 
     private async Task WaitForImageAsync(WaitForImageStep step, RunState state, CancellationToken ct)
     {
