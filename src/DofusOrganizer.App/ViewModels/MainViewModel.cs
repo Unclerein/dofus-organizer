@@ -11,6 +11,7 @@ public sealed class MainViewModel : ObservableObject
     private CharacterRowViewModel? _selectedCharacter;
     private MacroEditorViewModel? _selectedMacro;
     private BroadcastKey? _selectedBroadcast;
+    private SlowKey? _selectedSlowKey;
     private string _status = "Prêt.";
     private bool _macroRunning;
     private bool _recording;
@@ -69,6 +70,10 @@ public sealed class MainViewModel : ObservableObject
         AssignBroadcastKeyCommand = new RelayCommand(async () => await AssignBroadcastHotkeyAsync(trigger: false), () => SelectedBroadcast is not null);
         RunBroadcastCommand = new RelayCommand(async () => await RunBroadcastAsync(), () => SelectedBroadcast is not null && !MacroRunning);
 
+        AddSlowKeyCommand = new RelayCommand(AddSlowKey);
+        DeleteSlowKeyCommand = new RelayCommand(DeleteSlowKey, () => SelectedSlowKey is not null);
+        AssignSlowKeyCommand = new RelayCommand(async () => await AssignSlowKeyAsync(), () => SelectedSlowKey is not null);
+
         AssignNextHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Next));
         AssignPreviousHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Previous));
         AssignPanicHotkeyCommand = new RelayCommand(async () => await AssignSettingHotkeyAsync(SettingHotkey.Panic));
@@ -82,6 +87,9 @@ public sealed class MainViewModel : ObservableObject
 
         foreach (var broadcast in Profile.Broadcasts) Broadcasts.Add(broadcast);
         SelectedBroadcast = Broadcasts.FirstOrDefault();
+
+        foreach (var slow in Settings.SlowKeys) SlowKeys.Add(slow);
+        SelectedSlowKey = SlowKeys.FirstOrDefault();
 
         RefreshCharacters();
     }
@@ -100,6 +108,9 @@ public sealed class MainViewModel : ObservableObject
     /// dans le profil.
     /// </summary>
     public ObservableCollection<BroadcastKey> Broadcasts { get; } = [];
+
+    /// <summary>Reflet observable de <see cref="AppSettings.SlowKeys"/>, modifié de pair avec elle.</summary>
+    public ObservableCollection<SlowKey> SlowKeys { get; } = [];
 
     private StepKind _newStepKind = StepKind.Clic;
 
@@ -143,6 +154,19 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public bool HasBroadcast => _selectedBroadcast is not null;
+
+    public SlowKey? SelectedSlowKey
+    {
+        get => _selectedSlowKey;
+        set
+        {
+            if (!Set(ref _selectedSlowKey, value)) return;
+            Raise(nameof(HasSlowKey));
+            RefreshCommands();
+        }
+    }
+
+    public bool HasSlowKey => _selectedSlowKey is not null;
 
     public string Status
     {
@@ -192,6 +216,9 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand AssignBroadcastTriggerCommand { get; }
     public RelayCommand AssignBroadcastKeyCommand { get; }
     public RelayCommand RunBroadcastCommand { get; }
+    public RelayCommand AddSlowKeyCommand { get; }
+    public RelayCommand DeleteSlowKeyCommand { get; }
+    public RelayCommand AssignSlowKeyCommand { get; }
     public RelayCommand AssignNextHotkeyCommand { get; }
     public RelayCommand AssignPreviousHotkeyCommand { get; }
     public RelayCommand AssignPanicHotkeyCommand { get; }
@@ -550,6 +577,36 @@ public sealed class MainViewModel : ObservableObject
         await _service.BroadcastAsync(SelectedBroadcast);
     }
 
+    private void AddSlowKey()
+    {
+        var slow = new SlowKey();
+        Settings.SlowKeys.Add(slow);
+        SlowKeys.Add(slow);
+        SelectedSlowKey = slow;
+        _service.Save();
+    }
+
+    private void DeleteSlowKey()
+    {
+        if (SelectedSlowKey is null) return;
+
+        Settings.SlowKeys.Remove(SelectedSlowKey);
+        SlowKeys.Remove(SelectedSlowKey);
+        SelectedSlowKey = SlowKeys.FirstOrDefault();
+        _service.Save();
+    }
+
+    private async Task AssignSlowKeyAsync()
+    {
+        if (SelectedSlowKey is null) return;
+
+        var hotkey = await CaptureAsync("Appuyez sur la touche dont l'effet tarde");
+        if (hotkey is null) return;
+
+        SelectedSlowKey.Key = hotkey;
+        _service.Save();
+    }
+
     private enum SettingHotkey { Next, Previous, Panic, ToggleRecording, RepeatOnTeam }
 
     private async Task AssignSettingHotkeyAsync(SettingHotkey which)
@@ -611,7 +668,7 @@ public sealed class MainViewModel : ObservableObject
             MoveStepUpCommand, MoveStepDownCommand, ToggleRecordingCommand,
             CaptureAnchorCommand, ClearAnchorCommand,
             DeleteBroadcastCommand, AssignBroadcastTriggerCommand, AssignBroadcastKeyCommand,
-            RunBroadcastCommand,
+            RunBroadcastCommand, DeleteSlowKeyCommand, AssignSlowKeyCommand,
         ];
 
         foreach (var command in commands) command?.RaiseCanExecuteChanged();

@@ -110,6 +110,27 @@ La séquence capturée est conservée dans l'onglet **Macros** sous le nom « Re
 on y voit les images capturées et l'enchaînement obtenu, on peut corriger une étape ou un seuil,
 et relancer avec **Tester**.
 
+### Quand une touche met du temps à agir
+
+Un voyage commence souvent par la touche du havre-sac, dont le panneau met parfois un moment à
+s'ouvrir — et le clic suivant part alors dans le vide. Monter les délais généraux couvrirait le
+cas, mais ralentirait toute la séquence, sur chaque personnage.
+
+**Réglages → Touches lentes → Ajouter**, assignez la touche et son attente supplémentaire
+(1500 ms pour commencer, à baisser tant que ça passe). Cette attente s'ajoute à la pause
+ordinaire et vaut pour toutes les macros.
+
+Elle porte sur la **touche** et non sur une étape, et c'est délibéré : la séquence de « Refaire
+sur l'équipe » est recapturée à chaque voyage, donc une étape d'attente ajoutée à la main dans
+ses étapes serait perdue au voyage suivant. « Cette touche ouvre un panneau lent » est une
+propriété du jeu, pas d'une capture — exprimée ainsi, le réglage survit à toutes les recaptures.
+
+Sachez ce que vous achetez : une attente fixe doit être taillée pour le pire cas, subie même les
+fois où l'ouverture est immédiate, et multipliée par le nombre de personnages — 1,5 s sur huit
+clients, c'est douze secondes ajoutées au voyage. La réponse juste à une attente variable est
+l'**attente sur image**, qui constate l'ouverture au lieu de la parier ; elle demande une image
+d'ancrage, que seule une macro écrite à la main peut lui donner.
+
 **Passez par la liste des zaaps, pas par la carte du monde.** La carte peut avoir un zoom
 différent selon le personnage, et un même zaap ne s'y trouve alors pas au même endroit ; une
 liste de texte, elle, s'affiche identiquement partout. La reconnaissance d'image ne rattrape

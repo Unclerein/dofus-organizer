@@ -500,6 +500,47 @@
               80 ms convient dans la plupart des cas ; montez à 120 ou 150 si un double-clic n'aboutit pas.
             </TextBlock>
 
+            <TextBlock Text="Touches lentes" Style="{StaticResource SectionHeader}" />
+            <TextBlock Style="{StaticResource Hint}">
+              Certaines touches n'agissent pas sur-le-champ : celle du havre-sac ouvre un panneau qui met
+              parfois un moment à apparaître, et le clic suivant partirait dans le vide. Leur accorder une
+              attente ici évite de ralentir toute la séquence en montant les délais généraux.
+            </TextBlock>
+            <Grid Margin="0,6,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+
+              <DockPanel Grid.Column="0" Margin="0,0,12,0">
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                  <Button Content="Ajouter" Command="{Binding AddSlowKeyCommand}" />
+                  <Button Content="Supprimer" Command="{Binding DeleteSlowKeyCommand}" />
+                </StackPanel>
+                <ListBox ItemsSource="{Binding SlowKeys}" SelectedItem="{Binding SelectedSlowKey}"
+                         DisplayMemberPath="Summary" MinHeight="90" MaxHeight="150" />
+              </DockPanel>
+
+              <StackPanel Grid.Column="1" IsEnabled="{Binding HasSlowKey}">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                  <TextBlock Text="Touche" Width="130" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding SelectedSlowKey.Key, TargetNullValue=(aucune)}"
+                             Width="150" VerticalAlignment="Center" FontWeight="SemiBold" />
+                  <Button Content="Assigner" Command="{Binding AssignSlowKeyCommand}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="Attente en plus (ms)" Width="130" VerticalAlignment="Center" />
+                  <TextBox Text="{Binding SelectedSlowKey.ExtraDelayMs, UpdateSourceTrigger=LostFocus}" Width="80" />
+                </StackPanel>
+              </StackPanel>
+            </Grid>
+            <TextBlock Style="{StaticResource Hint}">
+              Cette attente s'ajoute à la pause ordinaire, elle ne la remplace pas, et vaut pour toutes les
+              macros. Elle porte sur la touche et non sur une étape : la séquence de « Refaire sur l'équipe »
+              étant recapturée à chaque voyage, une attente ajoutée à la main dans ses étapes serait perdue
+              au voyage suivant. Prévoyez large — le retard est subi par chaque personnage.
+            </TextBlock>
+
             <TextBlock Text="Détection des clients" Style="{StaticResource SectionHeader}" />
             <StackPanel Orientation="Horizontal" Margin="0,3">
               <TextBlock Text="Motif du titre" Width="130" VerticalAlignment="Center" />

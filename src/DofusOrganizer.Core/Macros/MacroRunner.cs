@@ -126,7 +126,12 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
 
             case KeyStep key:
                 input.SendKey(key.VirtualKey, key.Modifiers, key.Action, settings.UseScanCodes);
-                await clock.DelayAsync(state.ActionDelayMs, ct).ConfigureAwait(false);
+                // Le supplément s'ajoute à la pause courante au lieu de la remplacer : lors d'un
+                // rejeu sur l'équipe, le délai du rejeu reste nécessaire pour tout le reste de la
+                // séquence, et l'ouverture d'un panneau lent vient par-dessus.
+                await clock
+                    .DelayAsync(state.ActionDelayMs + SlowKeys.ExtraDelayFor(key, settings.SlowKeys), ct)
+                    .ConfigureAwait(false);
                 break;
 
             case DelayStep delay:

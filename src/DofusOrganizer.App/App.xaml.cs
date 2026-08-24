@@ -100,6 +100,9 @@ public partial class App : Application
         model.AddBroadcastCommand.Execute(null);
         model.DeleteBroadcastCommand.Execute(null);
 
+        model.AddSlowKeyCommand.Execute(null);
+        model.DeleteSlowKeyCommand.Execute(null);
+
         model.RefreshCommand.Execute(null);
         model.SaveCommand.Execute(null);
     }

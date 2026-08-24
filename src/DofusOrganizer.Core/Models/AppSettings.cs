@@ -176,6 +176,14 @@ public sealed class AppSettings : NotifyBase
     }
 
     /// <summary>
+    /// Touches dont l'effet tarde, avec l'attente à leur accorder en plus de la pause ordinaire.
+    ///
+    /// Vide par défaut : personne ne subit un ralentissement qu'il n'a pas demandé. On y ajoute
+    /// typiquement la touche du havre-sac, dont le panneau met parfois un moment à s'ouvrir.
+    /// </summary>
+    public List<SlowKey> SlowKeys { get; set; } = [];
+
+    /// <summary>
     /// Écart entre deux clics d'un même geste — un double-clic, par exemple.
     ///
     /// Cette valeur tient dans la seule fenêtre où un double-clic existe. Trop courte, les deux
