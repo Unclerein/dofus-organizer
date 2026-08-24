@@ -3,6 +3,7 @@ using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Models;
 using DofusOrganizer.Core.Organizer;
 using DofusOrganizer.Windows.Hooks;
+using static DofusOrganizer.Windows.Native.NativeMethods;
 
 namespace DofusOrganizer.Windows;
 
@@ -36,15 +37,11 @@ public sealed class HotkeyDispatcher : IDisposable
     private TaskCompletionSource<Hotkey>? _capture;
     private TaskCompletionSource<ScreenPoint>? _clickCapture;
 
-    /// <summary>Touches actuellement maintenues, pour ne déclencher qu'au premier appui et non à la répétition automatique.</summary>
-    private readonly HashSet<int> _heldKeys = [];
-
     /// <summary>
-    /// Touches dont l'appui a été absorbé. Leur relâchement doit l'être aussi :
-    /// un jeu qui reçoit un relâchement sans l'appui correspondant peut se retrouver
-    /// avec une touche considérée comme coincée.
+    /// Touches actuellement maintenues et absorption de leur relâchement. La comptabilité vit
+    /// dans Core, où elle se vérifie : s'y tromper condamne un raccourci en silence.
     /// </summary>
-    private readonly HashSet<int> _swallowed = [];
+    private readonly HeldKeyTracker _keys = new();
 
     public HotkeyDispatcher(Func<nint> getForegroundWindow, Func<nint, bool> isGameWindow)
     {
@@ -111,11 +108,7 @@ public sealed class HotkeyDispatcher : IDisposable
     {
         if (e.IsInjected) return false;
 
-        if (!e.IsDown)
-        {
-            _heldKeys.Remove(e.VirtualKey);
-            return _swallowed.Remove(e.VirtualKey);
-        }
+        if (!e.IsDown) return _keys.EndPress(e.VirtualKey);
 
         var capture = _capture;
         if (capture is not null)
@@ -129,17 +122,24 @@ public sealed class HotkeyDispatcher : IDisposable
         }
 
         // La répétition automatique du clavier renverrait la macro en boucle tant que la touche est tenue.
-        if (!_heldKeys.Add(e.VirtualKey)) return _swallowed.Contains(e.VirtualKey);
+        if (!_keys.BeginPress(e.VirtualKey)) return _keys.IsSwallowed(e.VirtualKey);
 
-        return Remember(e.VirtualKey, Dispatch(e.VirtualKey, e.Modifiers));
+        return _keys.MarkSwallowed(e.VirtualKey, Dispatch(e.VirtualKey, e.Modifiers));
     }
 
-    /// <summary>Note qu'une touche a été absorbée, pour absorber également son relâchement.</summary>
-    private bool Remember(int virtualKey, bool swallowed)
-    {
-        if (swallowed) _swallowed.Add(virtualKey);
-        return swallowed;
-    }
+    /// <summary>
+    /// Libère les touches que l'on croit tenues alors que le clavier les dit relâchées.
+    ///
+    /// À appeler régulièrement depuis le fil d'interface, celui-là même qui sert les rappels de
+    /// hook. Un relâchement peut se perdre quand ce fil tarde à rendre la main, et la touche
+    /// concernée resterait sinon considérée comme tenue pour toujours : son raccourci ne se
+    /// déclencherait plus jamais, tandis que tous les autres continueraient de fonctionner.
+    ///
+    /// Renvoie le nombre de touches libérées, pour que la réparation puisse être signalée plutôt
+    /// que de rester invisible.
+    /// </summary>
+    public int ReleaseStuckKeys()
+        => _keys.DropKeysNoLongerHeld(key => (GetAsyncKeyState(PhysicalKeyCodes.ForSystem(key)) & 0x8000) != 0);
 
     private bool OnMouse(MouseEvent e)
     {
@@ -155,11 +155,7 @@ public sealed class HotkeyDispatcher : IDisposable
 
         if (e.ExtraButton is null) return false;
 
-        if (!e.IsDown)
-        {
-            _heldKeys.Remove(e.ExtraButton.Value);
-            return _swallowed.Remove(e.ExtraButton.Value);
-        }
+        if (!e.IsDown) return _keys.EndPress(e.ExtraButton.Value);
 
         var capture = _capture;
         if (capture is not null)
@@ -169,9 +165,9 @@ public sealed class HotkeyDispatcher : IDisposable
             return true;
         }
 
-        if (!_heldKeys.Add(e.ExtraButton.Value)) return _swallowed.Contains(e.ExtraButton.Value);
+        if (!_keys.BeginPress(e.ExtraButton.Value)) return _keys.IsSwallowed(e.ExtraButton.Value);
 
-        return Remember(e.ExtraButton.Value, Dispatch(e.ExtraButton.Value, ModifierState.Current()));
+        return _keys.MarkSwallowed(e.ExtraButton.Value, Dispatch(e.ExtraButton.Value, ModifierState.Current()));
     }
 
     private bool Dispatch(int virtualKey, KeyModifiers modifiers)

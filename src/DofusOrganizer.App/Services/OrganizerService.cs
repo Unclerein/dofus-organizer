@@ -24,6 +24,7 @@ public sealed class OrganizerService : IDisposable, ILogSink
     private readonly Dispatcher _uiDispatcher;
 
     private CancellationTokenSource? _macroCancellation;
+    private bool _disposed;
 
     public OrganizerService(Dispatcher uiDispatcher, string? profilePath = null)
     {
@@ -32,8 +33,6 @@ public sealed class OrganizerService : IDisposable, ILogSink
         Profile = _store.Load();
 
         _runner = new MacroRunner(_windows, _input, new SystemClock(), this);
-        _runner.RunningChanged += running => _uiDispatcher.BeginInvoke(() => MacroRunningChanged?.Invoke(running));
-
         _dispatcher = new HotkeyDispatcher(_windows.GetForegroundWindow, IsGameWindow);
         _dispatcher.ActionTriggered += OnHotkey;
 
@@ -45,7 +44,26 @@ public sealed class OrganizerService : IDisposable, ILogSink
         {
             Interval = TimeSpan.FromSeconds(1),
         };
-        _refreshTimer.Tick += (_, _) => Refresh();
+        _refreshTimer.Tick += (_, _) =>
+        {
+            ReleaseStuckKeys();
+            Refresh();
+        };
+
+        // Abonnement après la création de la minuterie, que la réaction manipule : l'inverse
+        // laisserait une capture non encore affectée, du même genre que celle qui rendait
+        // autrefois l'application impossible à ouvrir.
+        _runner.RunningChanged += running => _uiDispatcher.BeginInvoke(() =>
+        {
+            // La macro lit la liste de personnages depuis un fil de travail. La rafraîchir
+            // pendant ce temps la ferait passer par un état où chaque emplacement a perdu sa
+            // fenêtre, et un personnage serait sauté sans que rien ne le signale. Rien n'a
+            // besoin d'être détecté pendant qu'une macro se déroule.
+            if (running) _refreshTimer.Stop();
+            else if (!_disposed) _refreshTimer.Start();
+
+            MacroRunningChanged?.Invoke(running);
+        });
     }
 
     public Profile Profile { get; private set; }
@@ -359,10 +377,33 @@ public sealed class OrganizerService : IDisposable, ILogSink
     public void FocusSlot(CharacterSlot slot)
         => Activate(Roster.Entries.FirstOrDefault(e => ReferenceEquals(e.Slot, slot)));
 
+    /// <summary>
+    /// Bascule vers un personnage. La fenêtre visée est lue ici, sur le fil d'interface, mais
+    /// l'activation part sur un fil de travail.
+    ///
+    /// <see cref="Win32WindowManager.Activate"/> attend que le client soit réellement prêt, ce
+    /// qui peut prendre jusqu'à deux secondes pour un client lourd — au sortir d'un combat, par
+    /// exemple. Sur le fil d'interface, cette attente bloque aussi les rappels des hooks bas
+    /// niveau, qu'il est le seul à servir : le relâchement de la touche qui vient de déclencher
+    /// la bascule s'y perdait, et cette touche restait considérée comme tenue pour toujours.
+    /// </summary>
     private void Activate(RosterEntry? entry)
     {
         if (entry?.Window is null) return;
-        _windows.Activate(entry.Window.Handle);
+
+        nint handle = entry.Window.Handle;
+        _ = Task.Run(() => _windows.Activate(handle));
+    }
+
+    /// <summary>
+    /// Libère les touches que l'organizer croit tenues alors que le clavier les dit relâchées.
+    /// Un relâchement perdu condamnerait sinon son raccourci jusqu'au redémarrage, pendant que
+    /// tous les autres continueraient de répondre.
+    /// </summary>
+    private void ReleaseStuckKeys()
+    {
+        int released = _dispatcher.ReleaseStuckKeys();
+        if (released > 0) Log($"{released} touche(s) restée(s) bloquée(s) ont été libérées.");
     }
 
     /// <summary>
@@ -396,8 +437,13 @@ public sealed class OrganizerService : IDisposable, ILogSink
         _macroCancellation?.Dispose();
         _macroCancellation = new CancellationTokenSource();
 
-        var result = await _runner
-            .RunAsync(macro, Roster, Profile.Settings, _macroCancellation.Token, actionDelayOverride)
+        var token = _macroCancellation.Token;
+
+        // Hors du fil d'interface : le moteur y enchaîne des activations de fenêtre, des captures
+        // d'écran et des recherches d'image, toutes synchrones et coûteuses. Le laisser là
+        // bloquerait les rappels des hooks, dont ce fil est le seul serviteur.
+        var result = await Task
+            .Run(() => _runner.RunAsync(macro, Roster, Profile.Settings, token, actionDelayOverride), token)
             .ConfigureAwait(false);
 
         if (result.Outcome == MacroOutcome.Failed) Log($"Échec : {result.Message}");
@@ -438,6 +484,7 @@ public sealed class OrganizerService : IDisposable, ILogSink
 
     public void Dispose()
     {
+        _disposed = true;
         _refreshTimer.Stop();
         _macroCancellation?.Cancel();
         _macroCancellation?.Dispose();

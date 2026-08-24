@@ -206,6 +206,10 @@ macro part de travers.
 - **Les touches n'arrivent pas dans le jeu** : décochez « Envoyer les touches avec leur
   code de balayage » dans les Réglages. Les moteurs de jeu se partagent entre les deux
   façons de lire le clavier.
+- **Un seul raccourci ne répond plus, les autres marchent** : sa touche a été considérée
+  comme restée enfoncée — son relâchement s'est perdu — et l'organizer la prenait pour une
+  répétition automatique. Il s'en aperçoit désormais tout seul en moins d'une seconde et le
+  signale dans la barre d'état ; il n'y a plus à redémarrer.
 - **Les clics tombent à côté** : vérifiez que l'écran concerné n'a pas changé de mise à
   l'échelle depuis l'enregistrement, et réenregistrez la séquence au besoin.
 
