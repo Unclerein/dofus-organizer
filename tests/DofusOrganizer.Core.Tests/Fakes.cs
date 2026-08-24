@@ -9,7 +9,7 @@ namespace DofusOrganizer.Core.Tests;
 public abstract record RecordedAction
 {
     public sealed record Focus(nint Handle, bool Succeeded) : RecordedAction;
-    public sealed record Click(AbsolutePoint Point, MouseButton Button, int Clicks) : RecordedAction;
+    public sealed record Click(AbsolutePoint Point, MouseButton Button) : RecordedAction;
     public sealed record Move(AbsolutePoint Point) : RecordedAction;
     public sealed record Key(int VirtualKey, KeyModifiers Modifiers, KeyAction Action) : RecordedAction;
     public sealed record Wheel(AbsolutePoint Point, int Notches) : RecordedAction;
@@ -94,8 +94,8 @@ public sealed class FakeInputSender(List<RecordedAction> actions) : IInputSender
 
     public void MoveMouse(AbsolutePoint point) => actions.Add(new RecordedAction.Move(point));
 
-    public void Click(AbsolutePoint point, MouseButton button, int clicks)
-        => actions.Add(new RecordedAction.Click(point, button, clicks));
+    public void Click(AbsolutePoint point, MouseButton button)
+        => actions.Add(new RecordedAction.Click(point, button));
 
     public void SendKey(int virtualKey, KeyModifiers modifiers, KeyAction action, bool useScanCodes)
         => actions.Add(new RecordedAction.Key(virtualKey, modifiers, action));

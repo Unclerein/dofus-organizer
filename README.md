@@ -158,10 +158,15 @@ varient sort de ce que l'outil sait faire : il ne lit pas le texte, il reconnaî
   enregistrée et le signale dans la barre d'état. Le rejeu continue.
 - L'aperçu affiché dans l'éditeur montre exactement ce qui a été capturé : c'est le premier
   endroit à regarder quand une étape se comporte mal.
-- Un **double-clic** est reconnu comme tel à la capture et rejoué en un seul geste. Sans cela il
-  deviendrait deux étapes que le rejeu espace du délai configuré, et le jeu n'y verrait que deux
-  clics isolés. L'étape s'affiche alors « ×2 » ; le champ **Répétitions** permet aussi de le
-  régler à la main.
+- Un **double-clic** est reconnu comme tel à la capture et rejoué comme un seul geste. L'étape
+  s'affiche alors « ×2 » ; le champ **Répétitions** permet aussi de le régler à la main.
+
+  Les deux clics sont espacés de 80 ms, réglable par « Entre deux clics d'un double-clic » dans
+  les Réglages. Cet écart obéit à deux bornes : trop court, les deux clics tombent dans la même
+  image du jeu, qui n'interroge l'entrée qu'une fois par image et n'en voit alors qu'un ; trop
+  long, il dépasse le seuil du système — une demi-seconde en général — et le jeu voit deux clics
+  indépendants. **Si un double-clic n'aboutit pas alors que l'étape affiche bien « ×2 », c'est ce
+  réglage qu'il faut monter**, à 120 puis 150 ms. Au-delà de 400 ms c'est inutile.
 
 Si des clics se perdent, augmentez « Après un changement de fenêtre » dans les Réglages —
 le client a besoin de quelques images avant d'accepter une entrée.

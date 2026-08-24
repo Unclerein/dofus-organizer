@@ -23,7 +23,12 @@ public sealed class SendInputSender : IInputSender
 
     public void MoveMouse(AbsolutePoint point) => Send([MouseInput(point, MOUSEEVENTF_MOVE)]);
 
-    public void Click(AbsolutePoint point, MouseButton button, int clicks)
+    /// <summary>
+    /// Un seul clic, déplacement compris. Répéter le geste — pour un double-clic — appartient au
+    /// moteur de macro, qui sait l'espacer dans le temps : émis d'un bloc ici, les clics
+    /// arriveraient au même instant et le jeu n'en verrait qu'un.
+    /// </summary>
+    public void Click(AbsolutePoint point, MouseButton button)
     {
         (uint down, uint up) = button switch
         {
@@ -32,16 +37,9 @@ public sealed class SendInputSender : IInputSender
             _ => (MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP),
         };
 
-        var inputs = new List<INPUT> { MouseInput(point, MOUSEEVENTF_MOVE) };
-        for (int i = 0; i < Math.Max(1, clicks); i++)
-        {
-            // Le déplacement est répété avec chaque appui : certains clients recalculent
-            // la case survolée au moment du clic et non au déplacement précédent.
-            inputs.Add(MouseInput(point, down));
-            inputs.Add(MouseInput(point, up));
-        }
-
-        Send([.. inputs]);
+        // Le déplacement accompagne chaque clic : certains clients recalculent la case survolée
+        // au moment du clic et non au déplacement précédent.
+        Send([MouseInput(point, MOUSEEVENTF_MOVE), MouseInput(point, down), MouseInput(point, up)]);
     }
 
     public void SendKey(int virtualKey, KeyModifiers modifiers, KeyAction action, bool useScanCodes)

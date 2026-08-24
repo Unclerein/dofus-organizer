@@ -485,9 +485,19 @@
               <TextBlock Text="Rejeu sur l'équipe (ms)" Width="240" VerticalAlignment="Center" />
               <TextBox Text="{Binding Settings.TeamReplayDelayMs, UpdateSourceTrigger=LostFocus}" Width="80" />
             </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,3">
+              <TextBlock Text="Entre deux clics d'un double-clic (ms)" Width="240" VerticalAlignment="Center" />
+              <TextBox Text="{Binding Settings.MultiClickIntervalMs, UpdateSourceTrigger=LostFocus}" Width="80" />
+            </StackPanel>
             <TextBlock Style="{StaticResource Hint}">
               Si des clics se perdent, augmentez le délai après changement de fenêtre : le client a besoin de quelques images avant d'accepter une entrée.
               Le délai du rejeu sur l'équipe est distinct et plus long : ouvrir une carte ou une liste prend bien plus de temps qu'enchaîner deux clics de sort.
+            </TextBlock>
+            <TextBlock Style="{StaticResource Hint}">
+              L'écart d'un double-clic obéit à deux bornes et n'est donc jamais celui des autres délais. Trop court, les deux
+              clics tombent dans la même image du jeu, qui n'interroge l'entrée qu'une fois par image : il n'en voit qu'un.
+              Trop long, il dépasse le seuil du système — une demi-seconde en général — et le jeu voit deux clics séparés.
+              80 ms convient dans la plupart des cas ; montez à 120 ou 150 si un double-clic n'aboutit pas.
             </TextBlock>
 
             <TextBlock Text="Détection des clients" Style="{StaticResource SectionHeader}" />

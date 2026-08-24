@@ -96,8 +96,7 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
             case MouseClickStep click:
                 if (TryResolveTarget(click.Point, click.Anchor, state, out var clickPoint))
                 {
-                    input.Click(clickPoint, click.Button, click.Clicks);
-                    await clock.DelayAsync(state.ActionDelayMs, ct).ConfigureAwait(false);
+                    await ClickAsync(click, clickPoint, settings, state, ct).ConfigureAwait(false);
                 }
                 break;
 
@@ -134,6 +133,35 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
                 await clock.DelayAsync(delay.Milliseconds, ct).ConfigureAwait(false);
                 break;
         }
+    }
+
+    /// <summary>
+    /// Clique une ou plusieurs fois au même endroit, en espaçant les clics d'un même geste.
+    ///
+    /// Sans cet écart, les clics partaient dans la même salve d'injection et arrivaient donc au
+    /// même instant. Un client Unity n'interroge l'entrée qu'une fois par image et n'en voyait
+    /// qu'un ; la détection du double-clic, elle, attend deux clics séparés dans le temps et
+    /// rapprochés — un écart nul n'est pas rapide, il est dégénéré. C'est le bug qui empêchait
+    /// une téléportation de partir.
+    ///
+    /// L'écart est celui des réglages et jamais celui des actions : il doit rester au-dessus
+    /// d'une image du jeu et en dessous du seuil de double-clic du système, alors que le délai
+    /// entre actions monte à plusieurs centaines de millisecondes pour un rejeu sur l'équipe —
+    /// bien au-delà de ce seuil, ce qui redonnerait deux clics indépendants.
+    /// </summary>
+    private async Task ClickAsync(
+        MouseClickStep step, AbsolutePoint point, AppSettings settings, RunState state, CancellationToken ct)
+    {
+        // Le point est résolu une fois par l'appelant : rechercher l'image entre les deux clics
+        // relancerait une capture d'écran, et la ligne survolée ayant changé d'aspect depuis le
+        // premier clic, le second pourrait atterrir ailleurs.
+        for (int i = 0; i < Math.Max(1, step.Clicks); i++)
+        {
+            if (i > 0) await clock.DelayAsync(settings.MultiClickIntervalMs, ct).ConfigureAwait(false);
+            input.Click(point, step.Button);
+        }
+
+        await clock.DelayAsync(state.ActionDelayMs, ct).ConfigureAwait(false);
     }
 
     private async Task RunLoopAsync(ForEachCharacterStep loop, CharacterRoster roster, AppSettings settings, RunState state, CancellationToken ct)

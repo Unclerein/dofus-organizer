@@ -8,8 +8,15 @@ public interface IInputSender
 {
     void MoveMouse(AbsolutePoint point);
 
-    /// <summary>Déplace le curseur sur le point puis clique le nombre de fois demandé.</summary>
-    void Click(AbsolutePoint point, MouseButton button, int clicks);
+    /// <summary>
+    /// Déplace le curseur sur le point et y clique une fois.
+    ///
+    /// Un seul clic, sans paramètre de répétition : enchaîner plusieurs clics demande un écart
+    /// de temps entre eux, et cet écart appartient au moteur de macro, qui dispose de l'horloge
+    /// et des réglages. Les émettre d'un bloc ici produirait des clics simultanés, que le jeu
+    /// ne distingue pas.
+    /// </summary>
+    void Click(AbsolutePoint point, MouseButton button);
 
     void SendKey(int virtualKey, KeyModifiers modifiers, KeyAction action, bool useScanCodes);
 

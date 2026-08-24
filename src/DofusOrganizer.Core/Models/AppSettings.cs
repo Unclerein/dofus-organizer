@@ -19,6 +19,7 @@ public sealed class AppSettings : NotifyBase
     private bool _swallowBoundKeys = true;
     private int _focusSettleDelayMs = 120;
     private int _actionDelayMs = 30;
+    private int _multiClickIntervalMs = 80;
     private bool _useScanCodes = true;
 
     /// <summary>
@@ -172,6 +173,24 @@ public sealed class AppSettings : NotifyBase
     {
         get => _actionDelayMs;
         set => Set(ref _actionDelayMs, Math.Clamp(value, 0, 5000));
+    }
+
+    /// <summary>
+    /// Écart entre deux clics d'un même geste — un double-clic, par exemple.
+    ///
+    /// Cette valeur tient dans la seule fenêtre où un double-clic existe. Trop courte, les deux
+    /// clics tombent dans la même image du jeu, qui n'interroge l'entrée qu'une fois par image :
+    /// il n'en voit qu'un. Trop longue, elle dépasse le seuil de double-clic du système
+    /// (une demi-seconde par défaut) et il voit deux clics indépendants.
+    ///
+    /// 80 ms laisse quelques images d'écart tout en restant le rythme d'une vraie main. La borne
+    /// basse dépendant du nombre d'images par seconde de la machine, c'est le premier réglage à
+    /// monter si un double-clic n'aboutit pas.
+    /// </summary>
+    public int MultiClickIntervalMs
+    {
+        get => _multiClickIntervalMs;
+        set => Set(ref _multiClickIntervalMs, Math.Clamp(value, 0, 1000));
     }
 
     /// <summary>
