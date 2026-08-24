@@ -45,8 +45,18 @@ public sealed class MacroRecorder(
     /// </summary>
     public bool AnchorClicks { get; set; } = true;
 
-    /// <summary>Côté du fragment capturé autour d'un clic.</summary>
-    public int AnchorPatchSize { get; set; } = 48;
+    /// <summary>Largeur du fragment capturé autour d'un clic.</summary>
+    public int AnchorPatchWidth { get; set; } = 160;
+
+    /// <summary>Hauteur du fragment capturé autour d'un clic.</summary>
+    public int AnchorPatchHeight { get; set; } = 48;
+
+    /// <summary>
+    /// Transformer les changements de fenêtre en étapes de focus. À laisser faux pour une
+    /// capture destinée au rejeu sur l'équipe : une telle étape, enfermée dans une boucle
+    /// par personnage, ramènerait chaque tour sur le personnage enregistré.
+    /// </summary>
+    public bool RecordWindowChanges { get; set; } = true;
 
     /// <summary>
     /// Ressemblance exigée au rejeu. Un peu plus tolérante que le réglage par défaut de la
@@ -77,10 +87,13 @@ public sealed class MacroRecorder(
         _sinceLastStep.Restart();
         _recording = true;
 
-        // Le personnage de départ est noté explicitement : sans cette première étape,
-        // le rejeu commencerait sur la fenêtre qui se trouve au premier plan ce jour-là.
-        int startIndex = slotIndexOf(_lastWindow);
-        if (startIndex >= 0) Add(new FocusStep { Target = FocusTarget.Slot, SlotIndex = startIndex });
+        // Le personnage de départ est noté explicitement : sans cette première étape, une
+        // macro rejouée plus tard commencerait sur la fenêtre au premier plan ce jour-là.
+        if (RecordWindowChanges)
+        {
+            int startIndex = slotIndexOf(_lastWindow);
+            if (startIndex >= 0) Add(new FocusStep { Target = FocusTarget.Slot, SlotIndex = startIndex });
+        }
 
         _keyboard.KeyEventReceived = OnKey;
         _mouse.MouseEventReceived = OnMouse;
@@ -157,8 +170,7 @@ public sealed class MacroRecorder(
     /// </summary>
     private ImageAnchor? CaptureAnchor(ScreenPoint point, ClientBounds bounds)
     {
-        int half = Math.Max(8, AnchorPatchSize / 2);
-        var area = ScreenRect.Around(point, half, bounds);
+        var area = AnchorArea(point, bounds, AnchorPatchWidth, AnchorPatchHeight);
         if (area.IsEmpty) return null;
 
         var patch = windows.CaptureScreen(area);
@@ -190,6 +202,22 @@ public sealed class MacroRecorder(
     }
 
     /// <summary>
+    /// Rectangle du fragment à capturer : large et court, à la forme d'une ligne d'interface.
+    /// Un carré étroit centré sur un clic peut ne contenir que quelques caractères, voire du
+    /// fond vide si le clic tombe après la fin d'un libellé court — et ressemble alors à
+    /// toutes les autres lignes.
+    /// </summary>
+    public static ScreenRect AnchorArea(ScreenPoint point, ClientBounds bounds, int width, int height)
+    {
+        int left = Math.Max(bounds.Origin.X, point.X - Math.Max(8, width / 2));
+        int top = Math.Max(bounds.Origin.Y, point.Y - Math.Max(8, height / 2));
+        int right = Math.Min(bounds.Origin.X + bounds.Width, point.X + Math.Max(8, width / 2));
+        int bottom = Math.Min(bounds.Origin.Y + bounds.Height, point.Y + Math.Max(8, height / 2));
+
+        return new ScreenRect(left, top, Math.Max(0, right - left), Math.Max(0, bottom - top));
+    }
+
+    /// <summary>
     /// Un changement de fenêtre pendant l'enregistrement devient une étape de focus,
     /// pour que le rejeu reproduise le même parcours entre les personnages.
     /// </summary>
@@ -198,6 +226,8 @@ public sealed class MacroRecorder(
         nint current = windows.GetForegroundWindow();
         if (current == _lastWindow) return;
         _lastWindow = current;
+
+        if (!RecordWindowChanges) return;
 
         int index = slotIndexOf(current);
         if (index < 0) return;

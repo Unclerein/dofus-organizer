@@ -78,6 +78,9 @@ public sealed class OrganizerService : IDisposable, ILogSink
 
     private CapturePurpose _purpose = CapturePurpose.Macro;
 
+    /// <summary>Levé quand la liste des macros du profil a changé en dehors de l'interface.</summary>
+    public event Action? MacrosChanged;
+
     /// <summary>Vrai si la capture en cours alimentera un rejeu sur l'équipe.</summary>
     public bool IsTeamRepeatCapture => Recorder.IsRecording && _purpose == CapturePurpose.TeamRepeat;
     public event Action<string>? LogMessage;
@@ -228,32 +231,51 @@ public sealed class OrganizerService : IDisposable, ILogSink
         var settings = Profile.Settings;
         Recorder.CaptureDelays = settings.RecordDelays;
         Recorder.AnchorClicks = settings.AnchorClicksToImages;
-        Recorder.AnchorPatchSize = settings.AnchorPatchSize;
+        Recorder.AnchorPatchWidth = settings.AnchorPatchWidth;
+        Recorder.AnchorPatchHeight = settings.AnchorPatchHeight;
+
+        // Un changement de fenêtre n'a pas de sens dans une séquence rejouée personnage par
+        // personnage : l'étape ramènerait chaque tour sur celui qui a été enregistré.
+        Recorder.RecordWindowChanges = _purpose != CapturePurpose.TeamRepeat;
     }
 
     private async Task RepeatOnTeamAsync(IReadOnlyList<MacroStep> steps)
     {
-        if (steps.Count == 0)
+        if (!TeamReplay.HasReplayableSteps(steps))
         {
             Log("Aucune action capturée : rien à refaire sur l'équipe.");
             return;
         }
 
-        // La séquence est enveloppée dans une boucle qui saute le personnage ayant le focus,
-        // c'est-à-dire le meneur : il vient déjà de faire l'action lui-même.
-        var loop = new ForEachCharacterStep { SkipCurrentWindow = true };
-        foreach (var step in steps) loop.Steps.Add(step);
+        var macro = StoreLastTeamCapture(TeamReplay.BuildMacro(steps));
 
-        var macro = new Macro
-        {
-            Name = "Refaire sur l'équipe",
-            RestoreInitialWindow = true,
-            RestoreCursorPosition = true,
-            Steps = { loop },
-        };
-
-        Log($"Rejeu de {steps.Count} action(s) sur le reste de l'équipe…");
+        Log($"Rejeu de {macro.Steps.Count} étape(s) sur le reste de l'équipe…");
         await RunMacroAsync(macro, Profile.Settings.TeamReplayDelayMs).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Range la séquence capturée dans le profil, sous un nom réservé et remplacée à chaque
+    /// usage. Sans cela elle serait exécutée puis jetée, et il n'y aurait rien à inspecter
+    /// quand le rejeu déçoit — ni les images capturées, ni l'enchaînement obtenu.
+    /// </summary>
+    private Macro StoreLastTeamCapture(Macro macro)
+    {
+        var existing = Profile.Macros.FirstOrDefault(m => m.Name == TeamReplay.MacroName);
+        if (existing is not null)
+        {
+            // Le raccourci éventuellement assigné à cette macro est conservé.
+            macro.Id = existing.Id;
+            macro.Hotkey = existing.Hotkey;
+            Profile.Macros[Profile.Macros.IndexOf(existing)] = macro;
+        }
+        else
+        {
+            Profile.Macros.Add(macro);
+        }
+
+        Save();
+        _uiDispatcher.BeginInvoke(() => MacrosChanged?.Invoke());
+        return macro;
     }
 
     private void Notify(bool recording)
@@ -300,8 +322,10 @@ public sealed class OrganizerService : IDisposable, ILogSink
 
         if (!_windows.TryGetClientBounds(target, out var bounds) || bounds.IsEmpty) return null;
 
-        int half = Math.Max(8, Profile.Settings.AnchorPatchSize / 2);
-        var area = ScreenRect.Around(point, half, bounds);
+        // Même forme de fragment que l'enregistreur, pour qu'une image recapturée à la main
+        // se comporte comme celles obtenues automatiquement.
+        var area = MacroRecorder.AnchorArea(point, bounds,
+            Profile.Settings.AnchorPatchWidth, Profile.Settings.AnchorPatchHeight);
         var patch = _windows.CaptureScreen(area);
         if (patch is null)
         {

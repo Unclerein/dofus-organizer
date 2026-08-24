@@ -27,6 +27,7 @@ public sealed class MainViewModel : ObservableObject
             if (!running) RefreshCommands();
         };
 
+        _service.MacrosChanged += SyncMacros;
         _service.RecordingChanged += OnRecordingChanged;
         _service.RecordingFinished += OnRecordingFinished;
 
@@ -69,7 +70,7 @@ public sealed class MainViewModel : ObservableObject
         SaveCommand = new RelayCommand(() => { _service.ApplyBindings(); Status = $"Profil enregistré dans {_service.ProfilePath}"; });
         RefreshCommand = new RelayCommand(_service.Refresh);
 
-        foreach (var macro in Profile.Macros) Macros.Add(new MacroEditorViewModel(macro));
+        SyncMacros();
         SelectedMacro = Macros.FirstOrDefault();
 
         RefreshCharacters();
@@ -165,6 +166,33 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand RefreshCommand { get; }
 
     private string _rosterSignature = "";
+
+    /// <summary>
+    /// Aligne la liste affichée sur les macros du profil. Nécessaire parce que le rejeu sur
+    /// l'équipe y range sa dernière capture sans passer par l'interface : sans cette
+    /// synchronisation, la macro existerait dans le fichier mais resterait invisible.
+    /// </summary>
+    private void SyncMacros()
+    {
+        foreach (var editor in Macros.Where(e => !Profile.Macros.Contains(e.Macro)).ToList())
+        {
+            Macros.Remove(editor);
+        }
+
+        for (int index = 0; index < Profile.Macros.Count; index++)
+        {
+            var macro = Profile.Macros[index];
+            var editor = Macros.FirstOrDefault(e => ReferenceEquals(e.Macro, macro));
+
+            if (editor is null) Macros.Insert(Math.Min(index, Macros.Count), new MacroEditorViewModel(macro));
+            else if (Macros.IndexOf(editor) != index && index < Macros.Count) Macros.Move(Macros.IndexOf(editor), index);
+        }
+
+        // Une capture qui vient de remplacer la macro sélectionnée doit rester sélectionnée,
+        // sinon l'utilisateur perd de vue ce qu'il vient d'enregistrer.
+        SelectedMacro ??= Macros.FirstOrDefault();
+        if (SelectedMacro is not null && !Macros.Contains(SelectedMacro)) SelectedMacro = Macros.FirstOrDefault();
+    }
 
     private void RefreshCharacters()
     {

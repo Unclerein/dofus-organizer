@@ -75,7 +75,13 @@ quel zaap il s'agit, il refait simplement ce que vous venez de faire.
 2. **Triez la liste des zaaps à l'identique sur tous vos personnages** (par ordre alphabétique
    par exemple). C'est la condition qui rend l'ensemble fiable.
 3. Sur votre meneur, appuyez sur la touche (un bip), prenez le zaap normalement, appuyez de
-   nouveau (deux bips). Les autres personnages refont l'enchaînement.
+   nouveau (deux bips). Les autres personnages refont l'enchaînement — la barre d'état annonce
+   chaque personnage visité.
+
+La séquence capturée est conservée dans l'onglet **Macros** sous le nom « Refaire sur l'équipe
+(dernière capture) », remplacée à chaque usage. C'est là qu'il faut aller quand le rejeu déçoit :
+on y voit les images capturées et l'enchaînement obtenu, on peut corriger une étape ou un seuil,
+et relancer avec **Tester**.
 
 **Passez par la liste des zaaps, pas par la carte du monde.** La carte peut avoir un zoom
 différent selon le personnage, et un même zaap ne s'y trouve alors pas au même endroit ; une
@@ -94,10 +100,15 @@ varient sort de ce que l'outil sait faire : il ne lit pas le texte, il reconnaî
 
 ### À savoir sur la reconnaissance
 
-- Au moment où vous cliquez, l'élément est **survolé**, donc souvent surligné — alors qu'il ne
-  le sera pas quand l'outil le cherchera chez le personnage suivant. C'est pourquoi la
-  ressemblance exigée est volontairement tolérante (85 %). Si une image n'est pas retrouvée,
-  baissez ce seuil dans l'éditeur d'étape ; si c'est la mauvaise qui est trouvée, montez-le.
+- L'image capturée est **large et courte** (160 × 48 px par défaut), à la forme d'une ligne
+  d'interface : un fragment carré et étroit peut ne contenir que quelques caractères — voire du
+  fond vide si le clic tombe après la fin d'un libellé court — et ressemble alors à toutes les
+  autres lignes. C'est la première chose à vérifier dans l'aperçu si la mauvaise ligne est
+  choisie.
+- La ressemblance exigée est volontairement tolérante (85 %), le rendu n'étant jamais identique
+  au pixel près d'une image à l'autre. Si une image n'est pas retrouvée, baissez ce seuil dans
+  l'éditeur d'étape ; si c'est la mauvaise qui est trouvée, élargissez plutôt l'image avant de
+  monter le seuil.
 - **Une image introuvable ne bloque pas la macro** : l'étape retombe sur sa position
   enregistrée et le signale dans la barre d'état. Le rejeu continue.
 - L'aperçu affiché dans l'éditeur montre exactement ce qui a été capturé : c'est le premier

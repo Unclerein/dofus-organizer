@@ -364,12 +364,15 @@
             <CheckBox Content="Capturer l'image autour de chaque clic, pour que le rejeu retrouve la cible si elle a bougé"
                       IsChecked="{Binding Settings.AnchorClicksToImages}" Margin="0,3" />
             <StackPanel Orientation="Horizontal" Margin="0,3">
-              <TextBlock Text="Taille de l'image capturée (px)" Width="240" VerticalAlignment="Center" />
-              <TextBox Text="{Binding Settings.AnchorPatchSize, UpdateSourceTrigger=LostFocus}" Width="80" />
+              <TextBlock Text="Image capturée : largeur × hauteur (px)" Width="240" VerticalAlignment="Center" />
+              <TextBox Text="{Binding Settings.AnchorPatchWidth, UpdateSourceTrigger=LostFocus}" Width="70" Margin="0,0,6,0" />
+              <TextBox Text="{Binding Settings.AnchorPatchHeight, UpdateSourceTrigger=LostFocus}" Width="70" />
             </StackPanel>
             <TextBlock Style="{StaticResource Hint}">
-              Une image plus grande est plus reconnaissable, mais plus longue à chercher et plus sensible à
-              ce qui change autour de la cible.
+              Large et courte par défaut, à la forme d'une ligne d'interface : un fragment carré et étroit peut
+              ne contenir que quelques caractères — voire du fond vide si le clic tombe après la fin d'un libellé
+              court — et ressemble alors à toutes les autres lignes. Plus grand, il est plus reconnaissable mais
+              plus long à chercher.
             </TextBlock>
 
             <TextBlock Text="Temporisations" Style="{StaticResource SectionHeader}" />

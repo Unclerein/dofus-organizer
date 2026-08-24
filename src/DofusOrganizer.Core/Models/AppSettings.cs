@@ -12,7 +12,8 @@ public sealed class AppSettings : NotifyBase
     private int _teamReplayDelayMs = 600;
     private bool _recordDelays;
     private bool _anchorClicksToImages = true;
-    private int _anchorPatchSize = 48;
+    private int _anchorPatchWidth = 160;
+    private int _anchorPatchHeight = 48;
     private bool _recordingFeedbackSound = true;
     private bool _hotkeysOnlyWhenGameFocused = true;
     private bool _swallowBoundKeys = true;
@@ -117,13 +118,22 @@ public sealed class AppSettings : NotifyBase
     }
 
     /// <summary>
-    /// Côté du fragment capturé. Plus grand, il est plus reconnaissable mais plus long à
-    /// chercher et plus sensible à ce qui change autour de la cible.
+    /// Largeur du fragment capturé. Une ligne d'interface est large et courte : un fragment
+    /// à sa forme capture le libellé entier plutôt que quelques caractères, ce qui évite de
+    /// confondre deux lignes voisines. Plus grand, il est plus reconnaissable mais plus long
+    /// à chercher et plus sensible à ce qui change autour de la cible.
     /// </summary>
-    public int AnchorPatchSize
+    public int AnchorPatchWidth
     {
-        get => _anchorPatchSize;
-        set => Set(ref _anchorPatchSize, Math.Clamp(value, 16, 256));
+        get => _anchorPatchWidth;
+        set => Set(ref _anchorPatchWidth, Math.Clamp(value, 16, 600));
+    }
+
+    /// <summary>Hauteur du fragment capturé.</summary>
+    public int AnchorPatchHeight
+    {
+        get => _anchorPatchHeight;
+        set => Set(ref _anchorPatchHeight, Math.Clamp(value, 16, 600));
     }
 
     /// <summary>

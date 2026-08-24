@@ -143,6 +143,7 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
             if (entry.Window is null) continue;
             if (loop.SkipCurrentWindow && entry.Window.Handle == state.InitialWindow) continue;
 
+            _log.Log($"→ {entry.Slot.DisplayName}");
             await FocusAsync(entry, settings, state, ct).ConfigureAwait(false);
             if (state.CurrentTarget != entry.Window.Handle)
             {
