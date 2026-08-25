@@ -17,6 +17,14 @@ internal struct POINT
     public int X, Y;
 }
 
+/// <summary>Instant de la dernière entrée reçue par le système, tous périphériques confondus.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct LASTINPUTINFO
+{
+    public uint cbSize;
+    public uint dwTime;
+}
+
 [StructLayout(LayoutKind.Sequential)]
 internal struct MOUSEINPUT
 {
@@ -208,6 +216,9 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern uint GetDoubleClickTime();
+
+    [DllImport("user32.dll")]
+    internal static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
 
     [DllImport("user32.dll", SetLastError = true)]
     internal static extern uint SendInput(uint count, INPUT[] inputs, int size);

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using DofusOrganizer.Core.Models;
 using DofusOrganizer.Core.Organizer;
 using DofusOrganizer.Windows.Hooks;
+using DofusOrganizer.Windows.Native;
 using static DofusOrganizer.Windows.Native.NativeMethods;
 
 namespace DofusOrganizer.Windows;
@@ -109,6 +110,64 @@ public sealed class HotkeyDispatcher : IDisposable
         if (!_keys.BeginPress(e.VirtualKey)) return _keys.IsSwallowed(e.VirtualKey);
 
         return _keys.MarkSwallowed(e.VirtualKey, Dispatch(e.VirtualKey, e.Modifiers));
+    }
+
+    /// <summary>
+    /// Résultat d'une vérification de la surveillance du clavier.
+    /// </summary>
+    public enum HookHealth
+    {
+        /// <summary>Les hooks voient ce que le système voit : rien à faire.</summary>
+        Alive,
+
+        /// <summary>Ils avaient été décrochés, ils sont reposés.</summary>
+        Restored,
+
+        /// <summary>Décrochés, et le système refuse de les reposer.</summary>
+        Lost,
+    }
+
+    /// <summary>
+    /// Repose les hooks si le système a reçu une entrée qu'ils n'ont pas vue.
+    ///
+    /// Windows retire un hook bas niveau dont le rappel tarde trop, sans rien signaler : plus
+    /// aucun raccourci ne répond, et rien dans le programme ne le sait. Comparer notre dernier
+    /// rappel à la dernière entrée du système le prouve, et permet d'en sortir sans redémarrer.
+    ///
+    /// Les deux hooks sont traités ensemble. C'est le fil qui les sert qui les fait tomber, donc
+    /// ils tombent ensemble ; et une entrée vue par l'un prouve que ce fil répond encore.
+    ///
+    /// À appeler depuis le fil d'interface : <c>SetWindowsHookEx</c> l'exige.
+    /// </summary>
+    public HookHealth CheckHooks()
+    {
+        long lastCallback = Math.Max(_keyboard.LastCallbackMs, _mouse.LastCallbackMs);
+        if (!HookWatchdog.ShouldReinstall(lastCallback, LastSystemInputMs())) return HookHealth.Alive;
+
+        bool keyboard = _keyboard.Reinstall();
+        bool mouse = _mouse.Reinstall();
+
+        // Le hook est peut-être mort une touche enfoncée : son relâchement n'a jamais été vu, et
+        // cette touche resterait tenue à jamais — le raccourci reviendrait mort.
+        _keys.Clear();
+
+        return keyboard && mouse ? HookHealth.Restored : HookHealth.Lost;
+    }
+
+    /// <summary>
+    /// Instant de la dernière entrée reçue par le système, ramené sur la même échelle que nos
+    /// horodatages. Zéro si le système refuse de répondre : l'écart devient alors négatif et
+    /// aucune réinstallation n'est déclenchée, ce qui est le repli prudent.
+    /// </summary>
+    private static long LastSystemInputMs()
+    {
+        var info = new LASTINPUTINFO { cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<LASTINPUTINFO>() };
+        if (!GetLastInputInfo(ref info)) return 0;
+
+        // dwTime est un compteur 32 bits, qui reboucle toutes les 49 jours. La soustraction non
+        // signée donne l'ancienneté juste même au passage du rebouclage.
+        uint idleMs = unchecked((uint)Environment.TickCount - info.dwTime);
+        return Environment.TickCount64 - idleMs;
     }
 
     /// <summary>

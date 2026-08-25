@@ -45,6 +45,7 @@ public sealed class OrganizerService : IDisposable, ILogSink
         };
         _refreshTimer.Tick += (_, _) =>
         {
+            CheckHooks();
             ReleaseStuckKeys();
             Refresh();
         };
@@ -231,16 +232,36 @@ public sealed class OrganizerService : IDisposable, ILogSink
         // frappées finissent dans la séquence plutôt que de déclencher autre chose. Seuls
         // l'arrêt d'urgence et les touches de capture restent actifs.
         _dispatcher.Enabled = false;
-        Recorder.Start();
+
+        try
+        {
+            Recorder.Start();
+        }
+        catch
+        {
+            // Poser les hooks de l'enregistreur peut échouer. Sans ce rattrapage, les raccourcis
+            // resteraient endormis pour de bon, sans capture en cours pour l'expliquer.
+            _dispatcher.Enabled = true;
+            throw;
+        }
+
         Notify(recording: true);
     }
 
     private IReadOnlyList<MacroStep> StopCapture()
     {
-        var steps = Recorder.Stop();
-        _dispatcher.Enabled = true;
-        Notify(recording: false);
-        return steps;
+        // Le réveil des raccourcis passe par un finally : s'il était sauté, ils resteraient
+        // endormis alors qu'aucune capture ne tourne, et tout cesserait de répondre sauf
+        // l'arrêt d'urgence et les touches de capture — indiscernable d'un hook décroché.
+        try
+        {
+            return Recorder.Stop();
+        }
+        finally
+        {
+            _dispatcher.Enabled = true;
+            Notify(recording: false);
+        }
     }
 
     private void ApplyRecorderSettings()
@@ -373,6 +394,28 @@ public sealed class OrganizerService : IDisposable, ILogSink
 
         nint handle = entry.Window.Handle;
         _ = Task.Run(() => _windows.Activate(handle));
+    }
+
+    /// <summary>
+    /// Vérifie que Windows n'a pas décroché la surveillance du clavier, et la repose sinon.
+    ///
+    /// Le décrochage est silencieux : sans cette vérification, tous les raccourcis cessent de
+    /// répondre et seul un redémarrage les ramène. Le rétablissement est annoncé plutôt que
+    /// tacite, pour qu'une récidive se voie au lieu d'intriguer.
+    /// </summary>
+    private void CheckHooks()
+    {
+        switch (_dispatcher.CheckHooks())
+        {
+            case HotkeyDispatcher.HookHealth.Restored:
+                Log("Raccourcis rétablis : Windows avait décroché la surveillance du clavier.");
+                break;
+
+            case HotkeyDispatcher.HookHealth.Lost:
+                Log("Surveillance du clavier perdue et impossible à reposer — un autre logiciel la bloque peut-être. "
+                    + "Relancez Dofus Organizer.");
+                break;
+        }
     }
 
     /// <summary>

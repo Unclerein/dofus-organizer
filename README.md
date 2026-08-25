@@ -174,6 +174,11 @@ macro part de travers.
   comme restée enfoncée — son relâchement s'est perdu — et l'organizer la prenait pour une
   répétition automatique. Il s'en aperçoit désormais tout seul en moins d'une seconde et le
   signale dans la barre d'état ; il n'y a plus à redémarrer.
+- **Plus aucun raccourci ne répond après un moment d'utilisation** : Windows retire la
+  surveillance du clavier dès qu'elle tarde à rendre la main, et il le fait sans rien signaler.
+  L'organizer le détecte maintenant en comparant ce qu'il a vu à ce que le système a reçu, et la
+  repose en deux ou trois secondes — la barre d'état l'annonce. S'il n'y arrive pas, elle le dit
+  aussi : un autre logiciel bloque probablement la pose, et là il faut relancer.
 - **Les clics tombent à côté** : vérifiez que l'écran concerné n'a pas changé de mise à
   l'échelle depuis l'enregistrement, et réenregistrez la séquence au besoin.
 
