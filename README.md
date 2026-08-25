@@ -134,9 +134,14 @@ depuis la dernière fois.
   indépendants. **Si un double-clic n'aboutit pas alors que l'étape affiche bien « ×2 », c'est ce
   réglage qu'il faut monter**, à 120 puis 150 ms. Au-delà de 400 ms c'est inutile.
 
-- La **molette** a son propre délai, court et distinct des autres : une liste défile à la vitesse
-  où on la fait tourner, sans rien à ouvrir ni à charger. « Après un cran de molette » dans les
-  Réglages, si un défilement va trop vite pour le jeu.
+- La **molette** : les crans d'un même geste sont regroupés en une seule étape à la capture, et
+  repartent en une seule injection — sans aucun écart entre eux, comme le geste d'origine. Sans
+  ce regroupement, parcourir une liste donnerait dix ou vingt étapes que le rejeu espacerait
+  chacune de son délai. Changer de sens ou marquer une pause ouvre un nouveau geste.
+
+  Le délai qui suit un défilement est court et distinct des autres — « Après un cran de molette »
+  dans les Réglages — parce qu'une liste défile à la vitesse où on la fait tourner, sans rien à
+  ouvrir ni à charger.
 
 Si des clics se perdent, augmentez « Après un changement de fenêtre » dans les Réglages —
 le client a besoin de quelques images avant d'accepter une entrée.

@@ -36,6 +36,7 @@ public sealed class MacroRecorder(
 
     /// <summary>Dernier appui enregistré, le temps de savoir si le suivant le prolonge.</summary>
     private RecordedClick? _lastClick;
+    private RecordedScroll? _lastScroll;
 
     /// <summary>Étape produite par cet appui, à compléter au relâchement si c'était un glisser.</summary>
     private MouseClickStep? _pendingClick;
@@ -74,6 +75,7 @@ public sealed class MacroRecorder(
 
         _steps.Clear();
         _lastClick = null;
+        _lastScroll = null;
         _pendingClick = null;
         _lastWindow = windows.GetForegroundWindow();
         _sinceLastStep.Restart();
@@ -170,6 +172,7 @@ public sealed class MacroRecorder(
         };
 
         _lastClick = new RecordedClick(e.Button.Value, e.Point, now);
+        _lastScroll = null;
         RememberPress(step, e.Point, bounds);
         Add(step);
         return false;
@@ -235,6 +238,23 @@ public sealed class MacroRecorder(
         if (!windows.TryGetClientBounds(target, out var bounds) || bounds.IsEmpty) return false;
 
         TrackWindowChange();
+
+        long now = Environment.TickCount64;
+        var direction = e.WheelNotches > 0 ? ScrollDirection.Up : ScrollDirection.Down;
+        int notches = Math.Abs(e.WheelNotches);
+
+        // Une main qui fait tourner la molette produit un événement par cran. Sans regroupement,
+        // parcourir une liste donnerait dix ou vingt étapes que le rejeu sépare chacune de son
+        // délai : le geste, instantané pour qui l'a fait, se rejouerait au ralenti.
+        if (_steps.Count > 0 && _steps[^1] is ScrollStep previous
+            && ScrollMerging.ContinuesScroll(_lastScroll, direction, e.Point, now, previous.Notches, notches))
+        {
+            previous.Notches += notches;
+            _lastScroll = new RecordedScroll(direction, e.Point, now);
+            StepRecorded?.Invoke(previous);
+            return false;
+        }
+
         AddDelay();
 
         var normalized = CoordinateMapper.ToNormalized(e.Point, bounds);
@@ -242,9 +262,11 @@ public sealed class MacroRecorder(
         {
             Fx = normalized.Fx,
             Fy = normalized.Fy,
-            Direction = e.WheelNotches > 0 ? ScrollDirection.Up : ScrollDirection.Down,
-            Notches = Math.Abs(e.WheelNotches),
+            Direction = direction,
+            Notches = notches,
         });
+
+        _lastScroll = new RecordedScroll(direction, e.Point, now);
         return false;
     }
 
