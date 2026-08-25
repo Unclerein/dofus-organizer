@@ -13,13 +13,6 @@ public readonly record struct NormalizedPoint(double Fx, double Fy)
     public NormalizedPoint Clamped() => new(Math.Clamp(Fx, 0d, 1d), Math.Clamp(Fy, 0d, 1d));
 }
 
-/// <summary>Un rectangle en pixels dans l'espace écran, tel qu'on le capture.</summary>
-public readonly record struct ScreenRect(int X, int Y, int Width, int Height)
-{
-    public bool IsEmpty => Width <= 0 || Height <= 0;
-
-}
-
 /// <summary>Zone client d'une fenêtre : sa taille, et l'écran où se trouve son coin haut-gauche.</summary>
 public readonly record struct ClientBounds(ScreenPoint Origin, int Width, int Height)
 {

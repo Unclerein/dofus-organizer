@@ -18,30 +18,6 @@ internal struct POINT
 }
 
 [StructLayout(LayoutKind.Sequential)]
-internal struct BITMAPINFOHEADER
-{
-    public int biSize;
-    public int biWidth;
-    /// <summary>Négatif pour obtenir une image de haut en bas, dans l'ordre où on la lit.</summary>
-    public int biHeight;
-    public short biPlanes;
-    public short biBitCount;
-    public int biCompression;
-    public int biSizeImage;
-    public int biXPelsPerMeter;
-    public int biYPelsPerMeter;
-    public int biClrUsed;
-    public int biClrImportant;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct BITMAPINFO
-{
-    public BITMAPINFOHEADER bmiHeader;
-    // La palette est inutile en 32 bits sans compression, donc omise.
-}
-
-[StructLayout(LayoutKind.Sequential)]
 internal struct MOUSEINPUT
 {
     public int dx;
@@ -272,34 +248,4 @@ internal static class NativeMethods
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, EntryPoint = "QueryFullProcessImageNameW")]
     internal static extern bool QueryFullProcessImageName(nint process, uint flags, StringBuilder name, ref int size);
 
-    internal const uint SRCCOPY = 0x00CC0020;
-    internal const uint DIB_RGB_COLORS = 0;
-    internal const int BI_RGB = 0;
-
-    [DllImport("user32.dll")]
-    internal static extern nint GetDC(nint hWnd);
-
-    [DllImport("user32.dll")]
-    internal static extern int ReleaseDC(nint hWnd, nint hdc);
-
-    [DllImport("gdi32.dll")]
-    internal static extern nint CreateCompatibleDC(nint hdc);
-
-    [DllImport("gdi32.dll")]
-    internal static extern nint CreateCompatibleBitmap(nint hdc, int width, int height);
-
-    [DllImport("gdi32.dll")]
-    internal static extern nint SelectObject(nint hdc, nint handle);
-
-    [DllImport("gdi32.dll")]
-    internal static extern bool BitBlt(nint destination, int x, int y, int width, int height, nint source, int sourceX, int sourceY, uint rasterOperation);
-
-    [DllImport("gdi32.dll")]
-    internal static extern bool DeleteDC(nint hdc);
-
-    [DllImport("gdi32.dll")]
-    internal static extern bool DeleteObject(nint handle);
-
-    [DllImport("gdi32.dll")]
-    internal static extern int GetDIBits(nint hdc, nint bitmap, uint firstLine, uint lines, byte[]? bits, ref BITMAPINFO info, uint usage);
 }

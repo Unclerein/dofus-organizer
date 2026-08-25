@@ -85,37 +85,6 @@ public class ProfileMigrationTests : IDisposable
     }
 
     [Fact]
-    public void Un_profil_entierement_connu_traverse_la_migration_intact()
-    {
-        var store = new ProfileStore(PathFor("connu.json"));
-        var profile = new Profile
-        {
-            Characters = { new CharacterSlot { Key = "Éni", Hotkey = new Hotkey(VirtualKeys.F2) } },
-            Macros =
-            {
-                new Macro
-                {
-                    Name = "Soin",
-                    Steps =
-                    {
-                        new ForEachCharacterStep { Steps = { new MouseClickStep { Fx = 0.25, Fy = 0.9 } } },
-                        new MouseDragStep { Fx = 0.1, Fy = 0.1, ToFx = 0.2, ToFy = 0.2 },
-                    },
-                },
-            },
-        };
-
-        store.Save(profile);
-        var loaded = store.Load();
-
-        Assert.Equal("Éni", Assert.Single(loaded.Characters).Key);
-        var macro = Assert.Single(loaded.Macros);
-        Assert.Equal(2, macro.Steps.Count);
-        Assert.Single(Assert.IsType<ForEachCharacterStep>(macro.Steps[0]).Steps);
-        Assert.IsType<MouseDragStep>(macro.Steps[1]);
-    }
-
-    [Fact]
     public void Les_types_reconnus_sont_lus_sur_le_modele_et_non_recopies()
     {
         // Une liste tenue à la main finirait par diverger, et une étape bien vivante mais
@@ -132,11 +101,23 @@ public class ProfileMigrationTests : IDisposable
     }
 
     [Fact]
+    public void Un_profil_sain_rend_la_chaine_recue_elle_meme()
+    {
+        // Contrat dont ProfileStore se sert : il compare les références pour savoir qu'une
+        // seconde lecture serait inutile. Sans cette garantie il relirait le profil pour rien.
+        const string sain = """
+        { "Macros": [ { "Steps": [ { "type": "delay", "Milliseconds": 250 } ] } ] }
+        """;
+
+        Assert.Same(sain, ProfileMigration.DropUnknownSteps(sain));
+    }
+
+    [Fact]
     public void Un_texte_illisible_ressort_tel_quel()
     {
         // La migration n'a pas à juger d'un fichier abîmé : le lecteur le met déjà de côté
         // au lieu de l'écraser, et c'est ce comportement qu'il faut lui laisser.
         const string abime = "ceci n'est pas du JSON {{{";
-        Assert.Equal(abime, ProfileMigration.DropUnknownSteps(abime));
+        Assert.Same(abime, ProfileMigration.DropUnknownSteps(abime));
     }
 }

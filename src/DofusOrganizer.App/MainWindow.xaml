@@ -151,12 +151,11 @@
                 <ContentControl.Resources>
 
                   <DataTemplate DataType="{x:Type models:MouseClickStep}">
-                   <StackPanel>
                     <StackPanel Orientation="Horizontal">
                       <TextBlock Text="Bouton" VerticalAlignment="Center" Margin="0,0,6,0" />
                       <ComboBox SelectedValue="{Binding Button}" Width="90" Margin="0,0,14,0"
-                                ItemsSource="{x:Static vm:Choices.MouseButtons}"
-                                SelectedValuePath="Value" DisplayMemberPath="Label" />
+                        ItemsSource="{x:Static vm:Choices.MouseButtons}"
+                        SelectedValuePath="Value" DisplayMemberPath="Label" />
                       <TextBlock Text="X %" VerticalAlignment="Center" Margin="0,0,6,0" />
                       <TextBox Text="{Binding Fx, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="72" Margin="0,0,14,0" />
                       <TextBlock Text="Y %" VerticalAlignment="Center" Margin="0,0,6,0" />
@@ -164,16 +163,14 @@
                       <TextBlock Text="Répétitions" VerticalAlignment="Center" Margin="0,0,6,0" />
                       <TextBox Text="{Binding Clicks, UpdateSourceTrigger=LostFocus}" Width="44" />
                     </StackPanel>
-                   </StackPanel>
                   </DataTemplate>
 
                   <DataTemplate DataType="{x:Type models:MouseDragStep}">
-                   <StackPanel>
                     <StackPanel Orientation="Horizontal">
                       <TextBlock Text="Bouton" VerticalAlignment="Center" Margin="0,0,6,0" />
                       <ComboBox SelectedValue="{Binding Button}" Width="90" Margin="0,0,14,0"
-                                ItemsSource="{x:Static vm:Choices.MouseButtons}"
-                                SelectedValuePath="Value" DisplayMemberPath="Label" />
+                        ItemsSource="{x:Static vm:Choices.MouseButtons}"
+                        SelectedValuePath="Value" DisplayMemberPath="Label" />
                       <TextBlock Text="Saisir à" VerticalAlignment="Center" Margin="0,0,6,0" />
                       <TextBox Text="{Binding Fx, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="66" Margin="0,0,4,0" />
                       <TextBox Text="{Binding Fy, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="66" Margin="0,0,14,0" />
@@ -183,7 +180,6 @@
                       <TextBlock Text="Étapes du trajet" VerticalAlignment="Center" Margin="0,0,6,0" />
                       <TextBox Text="{Binding IntermediateMoves, UpdateSourceTrigger=LostFocus}" Width="46" />
                     </StackPanel>
-                   </StackPanel>
                   </DataTemplate>
 
                   <DataTemplate DataType="{x:Type models:MouseMoveStep}">

@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Models;
 using DofusOrganizer.Core.Organizer;
 using DofusOrganizer.Windows.Hooks;
@@ -35,7 +34,6 @@ public sealed class HotkeyDispatcher : IDisposable
     private volatile HotkeyBindings _bindings = HotkeyBindings.Build(new Profile());
     private volatile AppSettings _settings = new();
     private TaskCompletionSource<Hotkey>? _capture;
-    private TaskCompletionSource<ScreenPoint>? _clickCapture;
 
     /// <summary>
     /// Touches actuellement maintenues et absorption de leur relâchement. La comptabilité vit
@@ -84,24 +82,10 @@ public sealed class HotkeyDispatcher : IDisposable
         return capture.Task;
     }
 
-    /// <summary>
-    /// Met le répartiteur en écoute du prochain clic, dont il rend la position à l'écran.
-    /// Le clic est absorbé : il sert à désigner un endroit, pas à agir dans le jeu.
-    /// </summary>
-    public Task<ScreenPoint> CaptureNextClickAsync(CancellationToken cancellationToken)
-    {
-        var capture = new TaskCompletionSource<ScreenPoint>(TaskCreationOptions.RunContinuationsAsynchronously);
-        cancellationToken.Register(() => capture.TrySetCanceled());
-        _clickCapture = capture;
-        return capture.Task;
-    }
-
     public void CancelCapture()
     {
         _capture?.TrySetCanceled();
         _capture = null;
-        _clickCapture?.TrySetCanceled();
-        _clickCapture = null;
     }
 
     private bool OnKey(KeyEvent e)
@@ -144,14 +128,6 @@ public sealed class HotkeyDispatcher : IDisposable
     private bool OnMouse(MouseEvent e)
     {
         if (e.IsInjected) return false;
-
-        var clickCapture = _clickCapture;
-        if (clickCapture is not null && e.IsDown && e.Button is not null)
-        {
-            clickCapture.TrySetResult(e.Point);
-            _clickCapture = null;
-            return true;
-        }
 
         if (e.ExtraButton is null) return false;
 

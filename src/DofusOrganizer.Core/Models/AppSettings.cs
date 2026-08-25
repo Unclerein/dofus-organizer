@@ -97,8 +97,7 @@ public sealed class AppSettings : NotifyBase
 
     /// <summary>
     /// Transformer les temps morts de l'enregistrement en étapes d'attente. Décoché par
-    /// défaut : les hésitations humaines encombrent la macro, et l'attente juste est celle
-    /// sur image.
+    /// défaut : les hésitations humaines encombrent la macro sans rien lui apporter.
     /// </summary>
     public bool RecordDelays
     {
@@ -153,20 +152,6 @@ public sealed class AppSettings : NotifyBase
     public List<SlowKey> SlowKeys { get; set; } = [];
 
     /// <summary>
-    /// Pause après un cran de molette.
-    ///
-    /// Court, et distinct du délai entre actions : une liste défile à la vitesse où on la fait
-    /// tourner, il n'y a ni panneau à ouvrir ni contenu à charger. Lui appliquer le délai du
-    /// rejeu sur l'équipe rendrait le moindre défilement interminable, multiplié par le nombre
-    /// de crans et de personnages.
-    /// </summary>
-    public int ScrollDelayMs
-    {
-        get => _scrollDelayMs;
-        set => Set(ref _scrollDelayMs, Math.Clamp(value, 0, 2000));
-    }
-
-    /// <summary>
     /// Écart entre deux clics d'un même geste — un double-clic, par exemple.
     ///
     /// Cette valeur tient dans la seule fenêtre où un double-clic existe. Trop courte, les deux
@@ -182,6 +167,20 @@ public sealed class AppSettings : NotifyBase
     {
         get => _multiClickIntervalMs;
         set => Set(ref _multiClickIntervalMs, Math.Clamp(value, 0, 1000));
+    }
+
+    /// <summary>
+    /// Pause après un cran de molette.
+    ///
+    /// Court, et distinct du délai entre actions : une liste défile à la vitesse où on la fait
+    /// tourner, il n'y a ni panneau à ouvrir ni contenu à charger. Lui appliquer le délai du
+    /// rejeu sur l'équipe ferait attendre une demi-seconde après chaque défilement, sur chaque
+    /// personnage.
+    /// </summary>
+    public int ScrollDelayMs
+    {
+        get => _scrollDelayMs;
+        set => Set(ref _scrollDelayMs, Math.Clamp(value, 0, 2000));
     }
 
     /// <summary>

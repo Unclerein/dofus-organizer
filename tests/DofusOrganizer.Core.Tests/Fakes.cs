@@ -1,6 +1,9 @@
 using DofusOrganizer.Core.Abstractions;
+using DofusOrganizer.Core.Macros;
+using DofusOrganizer.Core.Organizer;
 using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Models;
+using Xunit;
 
 namespace DofusOrganizer.Core.Tests;
 
@@ -70,7 +73,6 @@ public sealed class FakeWindowManager : IWindowManager
     public bool TryGetClientBounds(nint handle, out ClientBounds bounds) => _bounds.TryGetValue(handle, out bounds);
 
     public VirtualScreen GetVirtualScreen() => Screen;
-
 }
 
 public sealed class FakeInputSender(List<RecordedAction> actions) : IInputSender
@@ -126,5 +128,52 @@ public sealed class CancellingClock(CancellationTokenSource source, int cancelAf
         cancellationToken.ThrowIfCancellationRequested();
         if (++_count >= cancelAfter) source.Cancel();
         return Task.CompletedTask;
+    }
+}
+
+/// <summary>
+/// Le montage commun aux séries qui vérifient le rythme d'une macro sur un seul personnage —
+/// multi-clic, molette, touches lentes. Les trois le recopiaient mot pour mot, y compris la
+/// surcharge de délai ajoutée après coup à <see cref="MacroRunner.RunAsync"/> : trois endroits
+/// à corriger le jour où cette signature bougera encore.
+/// </summary>
+public static class MacroHarness
+{
+    /// <summary>Un personnage, une fenêtre, et aucune temporisation autre que celles qu'on mesure.</summary>
+    public static (FakeWindowManager Windows, CharacterRoster Roster, Profile Profile) BuildSolo()
+    {
+        var windows = new FakeWindowManager();
+        windows.AddWindow(1, "Meneur", new ClientBounds(new ScreenPoint(0, 0), 800, 600));
+        windows.Foreground = 1;
+
+        var profile = new Profile();
+        profile.Settings.FocusSettleDelayMs = 0;
+        profile.Settings.ActionDelayMs = 0;
+
+        var roster = new CharacterRoster();
+        roster.Sync(windows.Windows, profile.Characters);
+        return (windows, roster, profile);
+    }
+
+    public static Macro MacroOf(params MacroStep[] steps)
+    {
+        var macro = new Macro { Name = "Séquence", RestoreInitialWindow = false, RestoreCursorPosition = false };
+        foreach (var step in steps) macro.Steps.Add(step);
+        return macro;
+    }
+
+    /// <summary>Exécute la macro et rend la suite d'actions observées, dans l'ordre.</summary>
+    public static async Task<List<RecordedAction>> RunAsync(
+        Macro macro, FakeWindowManager windows, CharacterRoster roster, Profile profile,
+        int? actionDelayOverride = null)
+    {
+        var actions = windows.Actions;
+        var runner = new MacroRunner(windows, new FakeInputSender(actions), new FakeClock(actions));
+
+        var result = await runner.RunAsync(
+            macro, roster, profile.Settings, CancellationToken.None, actionDelayOverride);
+
+        Assert.Equal(MacroOutcome.Completed, result.Outcome);
+        return actions;
     }
 }

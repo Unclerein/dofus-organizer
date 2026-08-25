@@ -30,20 +30,56 @@ public sealed class ProfileStore(string path)
     {
         if (!File.Exists(Path)) return CreateDefault();
 
+        string json;
         try
         {
-            // Les étapes d'un type disparu sont écartées avant lecture : sans cela le lecteur
-            // lèverait sur le discriminant inconnu, et le repli ci-dessous repartirait d'un
-            // profil neuf — personnages et raccourcis compris.
-            string json = ProfileMigration.DropUnknownSteps(File.ReadAllText(Path));
+            json = File.ReadAllText(Path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return CreateDefault();
+        }
+
+        try
+        {
             return JsonSerializer.Deserialize<Profile>(json, JsonOptions) ?? CreateDefault();
         }
-        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+        catch (JsonException)
         {
+            // Peut-être un profil écrit par une version qui connaissait des étapes que
+            // celle-ci ignore : le lecteur lève sur un discriminant inconnu. Les écarter et
+            // réessayer sauve le reste — sans cela, l'utilisateur perdrait au premier
+            // lancement ses personnages, ses raccourcis et toutes ses macros.
+            //
+            // Cette seconde lecture n'a lieu qu'après un échec, jamais au démarrage ordinaire :
+            // analyser tout le profil une deuxième fois à chaque lancement coûterait bien plus
+            // que la lecture qu'elle protège.
+            if (TryLoadPruned(json) is { } recovered) return recovered;
+
             // Un profil corrompu est mis de côté au lieu d'être écrasé : l'utilisateur
             // peut encore y récupérer ses macros à la main.
             TryBackupCorruptFile();
             return CreateDefault();
+        }
+    }
+
+    /// <summary>
+    /// Relit le profil après avoir écarté ses étapes d'un type inconnu, ou null s'il n'y avait
+    /// rien à écarter — <see cref="ProfileMigration.DropUnknownSteps"/> rend alors la chaîne
+    /// reçue elle-même — ou si le résultat ne se lit toujours pas.
+    /// </summary>
+    private static Profile? TryLoadPruned(string json)
+    {
+        string pruned = ProfileMigration.DropUnknownSteps(json);
+        if (ReferenceEquals(pruned, json)) return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<Profile>(pruned, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
         }
     }
 

@@ -108,10 +108,7 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
                 {
                     input.Scroll(scrollPoint, scroll.Direction == ScrollDirection.Up ? scroll.Notches : -scroll.Notches);
 
-                    // La molette a son propre délai, court, et jamais celui des actions : une
-                    // liste défile à la vitesse où on la fait tourner, sans rien à charger ni à
-                    // ouvrir. Lui appliquer le délai du rejeu sur l'équipe rendrait le moindre
-                    // défilement interminable, multiplié par le nombre de crans et de personnages.
+                    // Le délai propre à la molette, jamais celui des actions — voir ScrollDelayMs.
                     await clock.DelayAsync(settings.ScrollDelayMs, ct).ConfigureAwait(false);
                 }
                 break;
@@ -220,21 +217,15 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
     private bool TryResolvePoint(NormalizedPoint point, RunState state, out AbsolutePoint absolute)
     {
         absolute = default;
-        if (!TryGetTargetBounds(state, out var bounds)) return false;
 
-        absolute = CoordinateMapper.ToAbsolute(point, bounds, windows.GetVirtualScreen());
-        return true;
-    }
-
-    private bool TryGetTargetBounds(RunState state, out ClientBounds bounds)
-    {
-        bounds = default;
         nint handle = state.CurrentTarget != 0 ? state.CurrentTarget : windows.GetForegroundWindow();
-        if (handle == 0 || !windows.TryGetClientBounds(handle, out bounds) || bounds.IsEmpty)
+        if (handle == 0 || !windows.TryGetClientBounds(handle, out var bounds) || bounds.IsEmpty)
         {
             _log.Log("Étape ignorée : aucune fenêtre cible valide.");
             return false;
         }
+
+        absolute = CoordinateMapper.ToAbsolute(point, bounds, windows.GetVirtualScreen());
         return true;
     }
 

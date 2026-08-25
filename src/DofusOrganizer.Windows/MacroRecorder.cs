@@ -44,13 +44,9 @@ public sealed class MacroRecorder(
 
     /// <summary>
     /// Insérer les temps d'attente réels entre deux actions. Désactivé par défaut : les
-    /// hésitations humaines encombrent la macro sans rien lui apporter, et l'attente juste
-    /// est celle sur image.
+    /// hésitations humaines encombrent la macro sans rien lui apporter.
     /// </summary>
     public bool CaptureDelays { get; set; }
-
-
-
 
     /// <summary>
     /// Transformer les changements de fenêtre en étapes de focus. À laisser faux pour une
@@ -58,7 +54,6 @@ public sealed class MacroRecorder(
     /// par personnage, ramènerait chaque tour sur le personnage enregistré.
     /// </summary>
     public bool RecordWindowChanges { get; set; } = true;
-
 
     /// <summary>Attentes plus courtes que ce seuil : elles n'apportent rien et alourdissent la macro.</summary>
     public int MinimumDelayMs { get; set; } = 60;
