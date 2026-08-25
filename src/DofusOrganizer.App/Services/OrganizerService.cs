@@ -334,6 +334,22 @@ public sealed class OrganizerService : IDisposable, ILogSink
         return -1;
     }
 
+    /// <summary>
+    /// Retire les personnages dont le client est fermé, et renvoie leur nombre.
+    ///
+    /// Sur demande seulement : un emplacement absent peut porter un raccourci et une position
+    /// que l'on n'efface pas dans le dos de l'utilisateur.
+    /// </summary>
+    public int ForgetAbsentCharacters()
+    {
+        int removed = Roster.ForgetAbsent(Profile.Characters);
+        if (removed == 0) return 0;
+
+        Refresh();
+        ApplyBindings();
+        return removed;
+    }
+
     public void FocusNext() => Activate(Roster.Next(_windows.GetForegroundWindow()));
 
     public void FocusPrevious() => Activate(Roster.Previous(_windows.GetForegroundWindow()));

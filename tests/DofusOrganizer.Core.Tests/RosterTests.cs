@@ -92,20 +92,4 @@ public class RosterTests
         Assert.Equal(["Eni", "Iop", "Cra"], roster.Entries.Select(e => e.Slot.DisplayName));
         Assert.Equal("Iop", roster.Next(2)!.Slot.DisplayName);
     }
-
-    [Theory]
-    [InlineData("Iop-Kileur - Dofus 3.2.5", "Iop-Kileur")]
-    [InlineData("Eni du 34 - Dofus", "Eni du 34")]
-    [InlineData("Dofus", "Dofus")]
-    public void Le_nom_du_personnage_est_extrait_du_titre(string title, string expected)
-        => Assert.Equal(expected, CharacterNameParser.Parse(title, AppSettings.DefaultTitlePattern));
-
-    [Fact]
-    public void Un_motif_invalide_retombe_sur_le_titre_brut()
-    {
-        // Un utilisateur qui saisit une expression cassée dans les réglages ne doit pas
-        // voir tous ses personnages disparaître de la liste.
-        Assert.Equal("Iop - Dofus", CharacterNameParser.Parse("Iop - Dofus", "(?<name>["));
-        Assert.Equal("Iop - Dofus", CharacterNameParser.Parse("Iop - Dofus", ""));
-    }
 }

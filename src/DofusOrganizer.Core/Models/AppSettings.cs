@@ -21,11 +21,19 @@ public sealed class AppSettings : NotifyBase
     private bool _useScanCodes = true;
 
     /// <summary>
-    /// Motif d'extraction du nom de personnage depuis le titre de la fenêtre.
-    /// Le groupe nommé « name » est celui qui est retenu. Réglable car le format
-    /// des titres de Dofus varie d'une version à l'autre.
+    /// Motif d'extraction du nom de personnage depuis le titre de la fenêtre. Le groupe nommé
+    /// « name » est celui qui est retenu.
+    ///
+    /// Il reconnaît la forme « Nom - Classe - Version - Release » et elle seule. C'est
+    /// délibéré : un client affiche « Dofus » puis « Dofus 3.6.10.11 - Release » avant de
+    /// nommer son personnage, et ces deux titres de passage ne doivent pas être pris pour des
+    /// personnages. Exiger les trois séparateurs les écarte, eux qui n'en ont qu'un ou zéro.
+    ///
+    /// Le nom est capturé sans gourmandise autour de « espace tiret espace », ce qui laisse
+    /// passer un nom contenant un tiret sans espaces. Réglable, le format des titres variant
+    /// d'une version à l'autre.
     /// </summary>
-    public const string DefaultTitlePattern = @"^(?<name>.+?)\s*-\s*Dofus";
+    public const string DefaultTitlePattern = @"^(?<name>.+?)\s+-\s+.+?\s+-\s+\d[\d.]*\s+-\s+.+$";
 
     /// <summary>Noms de processus considérés comme des clients Dofus (sans .exe, comparaison insensible à la casse).</summary>
     public List<string> ProcessNames { get; set; } = ["Dofus"];

@@ -46,6 +46,7 @@ public sealed class MainViewModel : ObservableObject
         ClearCharacterHotkeyCommand = new RelayCommand(ClearCharacterHotkey, () => SelectedCharacter is not null);
         FocusCharacterCommand = new RelayCommand(FocusCharacter, () => SelectedCharacter?.IsPresent == true);
         ForgetCharacterCommand = new RelayCommand(ForgetCharacter, () => SelectedCharacter?.IsPresent == false);
+        ForgetAbsentCharactersCommand = new RelayCommand(ForgetAbsentCharacters);
 
         AddMacroCommand = new RelayCommand(AddMacro);
         DeleteMacroCommand = new RelayCommand(DeleteMacro, () => SelectedMacro is not null);
@@ -166,6 +167,7 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand ClearCharacterHotkeyCommand { get; }
     public RelayCommand FocusCharacterCommand { get; }
     public RelayCommand ForgetCharacterCommand { get; }
+    public RelayCommand ForgetAbsentCharactersCommand { get; }
     public RelayCommand AddMacroCommand { get; }
     public RelayCommand DeleteMacroCommand { get; }
     public RelayCommand AssignMacroHotkeyCommand { get; }
@@ -244,17 +246,36 @@ public sealed class MainViewModel : ObservableObject
         Raise(nameof(PresentCount));
     }
 
+    /// <summary>
+    /// Compte les clients, en distinguant ceux qui ne nomment encore aucun personnage.
+    ///
+    /// Ces derniers ne figurent pas dans la liste — sans quoi chaque titre de passage y
+    /// laisserait une entrée — mais les taire rendrait une liste vide indéchiffrable, et
+    /// masquerait le cas où le motif d'extraction ne convient pas à la version installée.
+    /// </summary>
     public string PresentCount
     {
         get
         {
             int present = _service.Roster.Entries.Count(e => e.IsPresent);
-            return present switch
+            int pending = _service.Roster.PendingWindows;
+
+            string named = present switch
             {
-                0 => "Aucun client Dofus détecté",
-                1 => "1 client Dofus détecté",
-                _ => $"{present} clients Dofus détectés",
+                0 => "Aucun personnage connecté",
+                1 => "1 personnage connecté",
+                _ => $"{present} personnages connectés",
             };
+
+            if (pending == 0) return named;
+
+            string waiting = pending == 1 ? "1 client en cours de connexion" : $"{pending} clients en cours de connexion";
+
+            // Des clients détectés dont aucun ne se nomme : le motif est le premier suspect,
+            // et sans ce mot l'utilisateur ne verrait qu'une liste obstinément vide.
+            return present == 0
+                ? $"{waiting} — si cela dure, vérifiez le motif du titre dans les Réglages"
+                : $"{named}, {waiting}";
         }
     }
 
@@ -277,6 +298,17 @@ public sealed class MainViewModel : ObservableObject
         Profile.Characters.Remove(SelectedCharacter.Slot);
         _service.Refresh();
         _service.ApplyBindings();
+    }
+
+    private void ForgetAbsentCharacters()
+    {
+        int removed = _service.ForgetAbsentCharacters();
+        Status = removed switch
+        {
+            0 => "Aucun personnage absent à retirer.",
+            1 => "1 personnage absent retiré de la liste.",
+            _ => $"{removed} personnages absents retirés de la liste.",
+        };
     }
 
     private async Task AssignCharacterHotkeyAsync()

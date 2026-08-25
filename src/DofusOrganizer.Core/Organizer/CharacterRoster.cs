@@ -29,9 +29,24 @@ public sealed class CharacterRoster
     public IReadOnlyList<RosterEntry> ActiveEntries => _entries.Where(e => e.IsActive).ToList();
 
     /// <summary>
+    /// Nombre de clients détectés qui ne nomment encore aucun personnage — en cours de
+    /// chargement ou restés à l'écran de connexion.
+    ///
+    /// Compté plutôt qu'affiché : ces fenêtres n'ont pas leur place dans la liste, mais une
+    /// liste vide sans explication serait indéchiffrable, en particulier si le motif
+    /// d'extraction ne convient pas à la version installée.
+    /// </summary>
+    public int PendingWindows { get; private set; }
+
+    /// <summary>
     /// Aligne la liste sur les fenêtres ouvertes : les emplacements connus retrouvent
     /// leur fenêtre, les personnages jamais vus sont ajoutés à la fin, et ceux dont le
     /// client est fermé restent en place (grisés) pour ne pas perdre leur raccourci.
+    ///
+    /// Une fenêtre qui ne nomme aucun personnage est comptée et ignorée. Elle en nommera un
+    /// dans quelques secondes, et retrouvera alors l'emplacement persisté à ce nom — avec son
+    /// raccourci et sa position. Lui en créer un dès maintenant, sous son titre de passage,
+    /// laisserait derrière elle un emplacement orphelin à chaque changement de titre.
     /// </summary>
     public void Sync(IReadOnlyList<GameWindow> windows, List<CharacterSlot> slots)
     {
@@ -40,24 +55,45 @@ public sealed class CharacterRoster
         // On repart des emplacements persistés pour que l'ordre choisi par l'utilisateur fasse foi.
         SyncSlots(slots);
 
-        var unmatched = new List<GameWindow>();
+        PendingWindows = 0;
+        var unmatched = new List<(GameWindow Window, string Name)>();
+
         foreach (var window in windows)
         {
-            string key = KeyFor(window);
-            var entry = _entries.FirstOrDefault(e => e.Window is null && KeyMatches(e.Slot.Key, key));
-            if (entry is null) unmatched.Add(window);
+            if (window.CharacterName is not { Length: > 0 } name || string.IsNullOrWhiteSpace(name))
+            {
+                PendingWindows++;
+                continue;
+            }
+
+            var entry = _entries.FirstOrDefault(e => e.Window is null && KeyMatches(e.Slot.Key, name));
+            if (entry is null) unmatched.Add((window, name));
             else entry.Window = window;
         }
 
-        foreach (var window in unmatched)
+        foreach (var (window, name) in unmatched)
         {
-            // Un client resté à l'écran de connexion n'a pas encore de nom de personnage :
-            // il apparaît sous son titre brut, et l'emplacement définitif se créera une
-            // fois connecté. Le bouton « Oublier » sert à retirer celui devenu inutile.
-            var slot = new CharacterSlot { Key = KeyFor(window) };
+            var slot = new CharacterSlot { Key = name };
             slots.Add(slot);
             _entries.Add(new RosterEntry(slot) { Window = window });
         }
+    }
+
+    /// <summary>
+    /// Retire tous les emplacements dont le client est fermé, et renvoie leur nombre.
+    ///
+    /// Déclenché par l'utilisateur et jamais automatiquement : un emplacement survit à la
+    /// fermeture du client exprès, c'est ce qui garde un raccourci attaché à un personnage
+    /// d'une session à l'autre, et l'ordre que suit la touche « personnage suivant ».
+    /// </summary>
+    public int ForgetAbsent(List<CharacterSlot> slots)
+    {
+        var absent = _entries.Where(e => !e.IsPresent).Select(e => e.Slot).ToList();
+
+        foreach (var slot in absent) slots.Remove(slot);
+        _entries.RemoveAll(e => absent.Contains(e.Slot));
+
+        return absent.Count;
     }
 
     private void SyncSlots(List<CharacterSlot> slots)
@@ -84,9 +120,6 @@ public sealed class CharacterRoster
 
     private static bool KeyMatches(string slotKey, string windowKey)
         => string.Equals(slotKey, windowKey, StringComparison.OrdinalIgnoreCase);
-
-    private static string KeyFor(GameWindow window)
-        => string.IsNullOrWhiteSpace(window.CharacterName) ? window.Title : window.CharacterName;
 
     public RosterEntry? BySlotIndex(int index)
         => index >= 0 && index < _entries.Count ? _entries[index] : null;
@@ -136,13 +169,21 @@ public sealed class CharacterRoster
 public static class CharacterNameParser
 {
     /// <summary>
-    /// Applique le motif configuré et renvoie le groupe « name ». Le titre brut sert de
-    /// repli : un motif qui ne colle pas ne doit jamais faire disparaître un personnage
-    /// de la liste, seulement le nommer moins joliment.
+    /// Applique le motif configuré et renvoie le groupe « name », ou null si le titre ne nomme
+    /// aucun personnage.
+    ///
+    /// Ne pas répondre est le point important. Le titre d'un client traverse trois états —
+    /// « Dofus », puis « Dofus 3.6.10.11 - Release », puis « Nom - Classe - Version - Release » —
+    /// et un repli sur le titre brut ferait des deux premiers des personnages à part entière,
+    /// chacun avec son emplacement, sa ligne et son raccourci à assigner. Quatre clients en
+    /// produisaient douze.
+    ///
+    /// Un motif vide vaut « accepter tout titre tel quel » : c'est la porte de sortie pour une
+    /// version dont le titre aurait une forme imprévue.
     /// </summary>
-    public static string Parse(string title, string pattern)
+    public static string? Parse(string title, string pattern)
     {
-        if (string.IsNullOrWhiteSpace(title)) return "";
+        if (string.IsNullOrWhiteSpace(title)) return null;
         if (string.IsNullOrWhiteSpace(pattern)) return title.Trim();
 
         try
@@ -157,12 +198,13 @@ public static class CharacterNameParser
         }
         catch (ArgumentException)
         {
-            // Motif invalide saisi dans les réglages : on retombe sur le titre brut.
+            // Motif invalide saisi dans les réglages. Ne rien reconnaître vaut mieux que
+            // reconnaître n'importe quoi : la barre d'état signale les clients sans nom.
         }
         catch (RegexMatchTimeoutException)
         {
         }
 
-        return title.Trim();
+        return null;
     }
 }

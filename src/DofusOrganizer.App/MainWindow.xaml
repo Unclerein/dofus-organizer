@@ -60,6 +60,8 @@
             <Button Content="Aller dessus" Command="{Binding FocusCharacterCommand}" MinWidth="100" />
             <Button Content="Oublier" Command="{Binding ForgetCharacterCommand}"
                     ToolTip="Retire de la liste un personnage dont le client est fermé." />
+            <Button Content="Oublier les absents" Command="{Binding ForgetAbsentCharactersCommand}" MinWidth="140"
+                    ToolTip="Retire d'un coup tous les personnages dont le client est fermé, avec leurs raccourcis." />
             <Button Content="Rafraîchir" Command="{Binding RefreshCommand}" />
           </WrapPanel>
         </Grid>

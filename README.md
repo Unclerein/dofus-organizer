@@ -26,13 +26,23 @@ dotnet publish src/DofusOrganizer.App -c Release -r win-x64 --self-contained tru
 
 1. Lancez vos clients Dofus, puis Dofus Organizer. L'onglet **Personnages** liste ce qu'il
    a trouvé.
-2. Si la liste est vide, allez dans **Réglages** : la colonne « Titre de la fenêtre » de
-   l'onglet Personnages montre ce que l'application voit, ce qui permet d'ajuster le motif
-   d'extraction des noms ou la classe de fenêtre.
-3. Réordonnez les personnages avec **Monter** / **Descendre** : cet ordre est celui que
+2. Un client n'apparaît qu'une fois son personnage connecté. Avant cela son titre ne nomme
+   personne — « Dofus », puis « Dofus 3.6.10.11 - Release » — et la barre d'état les compte
+   comme « clients en cours de connexion » au lieu d'en faire des personnages. Sans quoi chaque
+   titre de passage laisserait une ligne derrière lui, et quatre clients en donneraient douze.
+3. Si la liste reste vide alors que la barre d'état annonce des clients, c'est le **motif du
+   titre** dans les Réglages qui ne correspond pas à votre version. Il attend la forme
+   « Nom - Classe - Version - Release ». Videz-le pour tout accepter tel quel, le temps de lire
+   dans la colonne « Titre de la fenêtre » ce que l'application voit.
+4. Réordonnez les personnages avec **Monter** / **Descendre** : cet ordre est celui que
    suivent la touche « personnage suivant » et les boucles de macro.
-4. Sélectionnez un personnage, cliquez **Assigner**, appuyez sur la touche voulue.
-5. Dans **Réglages**, assignez la touche « personnage suivant ».
+5. Sélectionnez un personnage, cliquez **Assigner**, appuyez sur la touche voulue.
+6. Dans **Réglages**, assignez la touche « personnage suivant ».
+
+Un personnage dont le client est fermé **reste dans la liste**, grisé : c'est ce qui garde son
+raccourci et sa position d'une session à l'autre. **Oublier les absents** les retire tous d'un
+coup quand la liste s'est encombrée — leurs raccourcis avec, d'où le fait que ce ne soit pas
+automatique.
 
 **Jouez en mode fenêtré ou fenêtré sans bordure.** En plein écran exclusif, Windows gère
 mal le passage d'une fenêtre à l'autre et les changements sont lents ou refusés.
