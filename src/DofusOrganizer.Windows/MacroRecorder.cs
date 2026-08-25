@@ -251,6 +251,13 @@ public sealed class MacroRecorder(
         {
             previous.Notches += notches;
             _lastScroll = new RecordedScroll(direction, e.Point, now);
+
+            // Le chronomètre repart, alors qu'aucune étape n'est ajoutée : sans cela, le temps
+            // passé à faire tourner la molette s'accumulerait pour être porté au compte de
+            // l'action suivante. Un geste d'une seconde et demie deviendrait une pause d'autant,
+            // insérée après le défilement, alors que l'utilisateur n'a rien attendu.
+            _sinceLastStep.Restart();
+
             StepRecorded?.Invoke(previous);
             return false;
         }
