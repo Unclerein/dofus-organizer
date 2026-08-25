@@ -18,20 +18,6 @@ public readonly record struct ScreenRect(int X, int Y, int Width, int Height)
 {
     public bool IsEmpty => Width <= 0 || Height <= 0;
 
-    /// <summary>
-    /// Rectangle centré sur un point, borné à une zone. Sert à limiter la recherche
-    /// d'un motif au voisinage de la position enregistrée : chercher dans toute la
-    /// fenêtre serait plus lent et plus exposé aux faux positifs.
-    /// </summary>
-    public static ScreenRect Around(ScreenPoint center, int radius, ClientBounds limit)
-    {
-        int left = Math.Max(limit.Origin.X, center.X - radius);
-        int top = Math.Max(limit.Origin.Y, center.Y - radius);
-        int right = Math.Min(limit.Origin.X + limit.Width, center.X + radius);
-        int bottom = Math.Min(limit.Origin.Y + limit.Height, center.Y + radius);
-
-        return new ScreenRect(left, top, Math.Max(0, right - left), Math.Max(0, bottom - top));
-    }
 }
 
 /// <summary>Zone client d'une fenêtre : sa taille, et l'écran où se trouve son coin haut-gauche.</summary>

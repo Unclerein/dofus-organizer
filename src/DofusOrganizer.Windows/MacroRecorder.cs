@@ -49,17 +49,8 @@ public sealed class MacroRecorder(
     /// </summary>
     public bool CaptureDelays { get; set; }
 
-    /// <summary>
-    /// Capturer le fragment d'écran autour de chaque clic, pour que le rejeu retrouve la
-    /// cible même si elle a bougé chez un autre personnage.
-    /// </summary>
-    public bool AnchorClicks { get; set; } = true;
 
-    /// <summary>Largeur du fragment capturé autour d'un clic.</summary>
-    public int AnchorPatchWidth { get; set; } = 160;
 
-    /// <summary>Hauteur du fragment capturé autour d'un clic.</summary>
-    public int AnchorPatchHeight { get; set; } = 48;
 
     /// <summary>
     /// Transformer les changements de fenêtre en étapes de focus. À laisser faux pour une
@@ -68,12 +59,6 @@ public sealed class MacroRecorder(
     /// </summary>
     public bool RecordWindowChanges { get; set; } = true;
 
-    /// <summary>
-    /// Ressemblance exigée au rejeu. Un peu plus tolérante que le réglage par défaut de la
-    /// reconnaissance : au moment du clic l'élément est survolé, donc souvent surligné, ce
-    /// qu'il ne sera pas quand on le cherchera chez le personnage suivant.
-    /// </summary>
-    public double AnchorMinimumScore { get; set; } = 0.85;
 
     /// <summary>Attentes plus courtes que ce seuil : elles n'apportent rien et alourdissent la macro.</summary>
     public int MinimumDelayMs { get; set; } = 60;
@@ -187,7 +172,6 @@ public sealed class MacroRecorder(
             Fx = normalized.Fx,
             Fy = normalized.Fy,
             Button = e.Button.Value,
-            Anchor = AnchorClicks ? CaptureAnchor(e.Point, bounds) : null,
         };
 
         _lastClick = new RecordedClick(e.Button.Value, e.Point, now);
@@ -227,12 +211,7 @@ public sealed class MacroRecorder(
             ToFx = destination.Fx,
             ToFy = destination.Fy,
             Button = pending.Button,
-            Anchor = pending.Anchor,
         };
-
-        // Le panneau saisi peut s'ouvrir loin de là chez un autre personnage : la recherche
-        // doit porter bien plus large que pour un clic sur un élément à sa place habituelle.
-        if (drag.Anchor is not null) drag.Anchor.SearchRadius = DragSearchRadius;
 
         _steps[index] = drag;
 
@@ -242,9 +221,6 @@ public sealed class MacroRecorder(
         StepRecorded?.Invoke(drag);
         return false;
     }
-
-    /// <summary>Rayon de recherche donné à l'ancrage d'un glisser.</summary>
-    private const int DragSearchRadius = 500;
 
     /// <summary>
     /// Seuils de double-clic et de glisser tels que l'utilisateur les a réglés. Les figer
@@ -256,24 +232,6 @@ public sealed class MacroRecorder(
         GetSystemMetrics(SM_CYDOUBLECLK),
         GetSystemMetrics(SM_CXDRAG),
         GetSystemMetrics(SM_CYDRAG));
-
-    /// <summary>
-    /// Relève le fragment d'écran entourant le point cliqué. La capture a lieu au moment de
-    /// l'appui, donc avant que le jeu ne réagisse : c'est bien la cible qui est photographiée,
-    /// pas ce qu'elle devient une fois cliquée.
-    /// </summary>
-    private ImageAnchor? CaptureAnchor(ScreenPoint point, ClientBounds bounds)
-    {
-        var area = AnchorArea(point, bounds, AnchorPatchWidth, AnchorPatchHeight);
-        if (area.IsEmpty) return null;
-
-        var patch = windows.CaptureScreen(area);
-        if (patch is null) return null;
-
-        var anchor = ImageAnchor.FromPixelBuffer(patch, point.X - area.X, point.Y - area.Y);
-        anchor.MinimumScore = AnchorMinimumScore;
-        return anchor;
-    }
 
     private bool OnWheel(MouseEvent e)
     {
@@ -293,22 +251,6 @@ public sealed class MacroRecorder(
             Notches = Math.Abs(e.WheelNotches),
         });
         return false;
-    }
-
-    /// <summary>
-    /// Rectangle du fragment à capturer : large et court, à la forme d'une ligne d'interface.
-    /// Un carré étroit centré sur un clic peut ne contenir que quelques caractères, voire du
-    /// fond vide si le clic tombe après la fin d'un libellé court — et ressemble alors à
-    /// toutes les autres lignes.
-    /// </summary>
-    public static ScreenRect AnchorArea(ScreenPoint point, ClientBounds bounds, int width, int height)
-    {
-        int left = Math.Max(bounds.Origin.X, point.X - Math.Max(8, width / 2));
-        int top = Math.Max(bounds.Origin.Y, point.Y - Math.Max(8, height / 2));
-        int right = Math.Min(bounds.Origin.X + bounds.Width, point.X + Math.Max(8, width / 2));
-        int bottom = Math.Min(bounds.Origin.Y + bounds.Height, point.Y + Math.Max(8, height / 2));
-
-        return new ScreenRect(left, top, Math.Max(0, right - left), Math.Max(0, bottom - top));
     }
 
     /// <summary>

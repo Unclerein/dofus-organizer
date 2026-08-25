@@ -1,7 +1,6 @@
 using System.Windows.Threading;
 using DofusOrganizer.Core.Abstractions;
 using DofusOrganizer.Core.Config;
-using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Macros;
 using DofusOrganizer.Core.Models;
 using DofusOrganizer.Core.Organizer;
@@ -248,9 +247,6 @@ public sealed class OrganizerService : IDisposable, ILogSink
     {
         var settings = Profile.Settings;
         Recorder.CaptureDelays = settings.RecordDelays;
-        Recorder.AnchorClicks = settings.AnchorClicksToImages;
-        Recorder.AnchorPatchWidth = settings.AnchorPatchWidth;
-        Recorder.AnchorPatchHeight = settings.AnchorPatchHeight;
 
         // Un changement de fenêtre n'a pas de sens dans une séquence rejouée personnage par
         // personnage : l'étape ramènerait chaque tour sur celui qui a été enregistré.
@@ -322,38 +318,6 @@ public sealed class OrganizerService : IDisposable, ILogSink
         }
     }
 
-    /// <summary>
-    /// Attend le prochain clic de l'utilisateur dans un client suivi et relève le fragment
-    /// d'écran qui l'entoure. Même principe que la capture de raccourci : on ne demande pas
-    /// des coordonnées à saisir, on regarde ce que la personne désigne.
-    /// </summary>
-    public async Task<ImageAnchor?> CaptureAnchorAsync(CancellationToken cancellationToken)
-    {
-        var point = await _dispatcher.CaptureNextClickAsync(cancellationToken).ConfigureAwait(false);
-
-        nint target = _windows.WindowUnder(point);
-        if (SlotIndexOf(target) < 0)
-        {
-            Log("Le clic doit être fait dans une fenêtre Dofus détectée.");
-            return null;
-        }
-
-        if (!_windows.TryGetClientBounds(target, out var bounds) || bounds.IsEmpty) return null;
-
-        // Même forme de fragment que l'enregistreur, pour qu'une image recapturée à la main
-        // se comporte comme celles obtenues automatiquement.
-        var area = MacroRecorder.AnchorArea(point, bounds,
-            Profile.Settings.AnchorPatchWidth, Profile.Settings.AnchorPatchHeight);
-        var patch = _windows.CaptureScreen(area);
-        if (patch is null)
-        {
-            Log("Capture d'image impossible à cet endroit.");
-            return null;
-        }
-
-        return ImageAnchor.FromPixelBuffer(patch, point.X - area.X, point.Y - area.Y);
-    }
-
     public Task<Hotkey> CaptureHotkeyAsync(CancellationToken cancellationToken)
         => _dispatcher.CaptureNextAsync(cancellationToken);
 
@@ -406,27 +370,6 @@ public sealed class OrganizerService : IDisposable, ILogSink
         if (released > 0) Log($"{released} touche(s) restée(s) bloquée(s) ont été libérées.");
     }
 
-    /// <summary>
-    /// Envoie une touche à chaque personnage, l'un après l'autre.
-    ///
-    /// Le délai reste celui des actions ordinaires et non celui du rejeu sur l'équipe : il n'y
-    /// a ni panneau à ouvrir ni liste à charger, juste une frappe. Le temps d'installation
-    /// après chaque changement de fenêtre s'applique en revanche, d'où une seconde environ
-    /// pour huit clients — une diffusion n'est pas un envoi simultané.
-    /// </summary>
-    public async Task BroadcastAsync(BroadcastKey broadcast)
-    {
-        var macro = KeyBroadcast.BuildMacro(broadcast);
-        if (macro is null)
-        {
-            Log($"« {broadcast.Name} » : aucune touche à envoyer, choisissez-en une dans les réglages.");
-            return;
-        }
-
-        Log($"Diffusion de {broadcast.Sent} à l'équipe…");
-        await RunMacroAsync(macro).ConfigureAwait(false);
-    }
-
     public Task RunMacroAsync(Macro macro) => RunMacroAsync(macro, actionDelayOverride: null);
 
     public async Task RunMacroAsync(Macro macro, int? actionDelayOverride)
@@ -471,9 +414,6 @@ public sealed class OrganizerService : IDisposable, ILogSink
                 case HotkeyActionKind.RepeatOnTeam: ToggleTeamRepeat(); break;
                 case HotkeyActionKind.RunMacro when action.Macro is not null:
                     _ = RunMacroAsync(action.Macro);
-                    break;
-                case HotkeyActionKind.Broadcast when action.Broadcast is not null:
-                    _ = BroadcastAsync(action.Broadcast);
                     break;
             }
         });

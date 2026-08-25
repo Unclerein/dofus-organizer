@@ -73,61 +73,23 @@ public class ProfileStoreTests : IDisposable
     }
 
     [Fact]
-    public void Les_diffusions_survivent_a_un_aller_retour_sur_disque()
+    public void Le_glisser_et_la_molette_survivent_a_un_aller_retour_sur_disque()
     {
-        // Une diffusion perdue au redémarrage ne se voit pas : le raccourci cesse simplement
-        // de répondre, sans erreur ni message.
-        var store = new ProfileStore(PathFor("diffusion.json"));
-        var profile = new Profile
-        {
-            Broadcasts =
-            {
-                new BroadcastKey
-                {
-                    Name = "S'asseoir",
-                    Trigger = new Hotkey(VirtualKeys.F9, KeyModifiers.Control),
-                    Sent = new Hotkey(VirtualKeys.Space, KeyModifiers.Shift),
-                },
-                new BroadcastKey { Name = "Potion", IncludeCurrent = false },
-            },
-        };
-
-        store.Save(profile);
-        var loaded = store.Load();
-
-        Assert.Equal(2, loaded.Broadcasts.Count);
-        Assert.Equal("S'asseoir", loaded.Broadcasts[0].Name);
-        Assert.Equal(new Hotkey(VirtualKeys.F9, KeyModifiers.Control), loaded.Broadcasts[0].Trigger);
-        Assert.Equal(new Hotkey(VirtualKeys.Space, KeyModifiers.Shift), loaded.Broadcasts[0].Sent);
-        Assert.True(loaded.Broadcasts[0].IncludeCurrent);
-
-        Assert.False(loaded.Broadcasts[1].IncludeCurrent);
-        Assert.Null(loaded.Broadcasts[1].Sent);
-        Assert.False(loaded.Broadcasts[1].IsUsable);
-    }
-
-    [Fact]
-    public void Les_nouvelles_etapes_survivent_a_un_aller_retour_sur_disque()
-    {
-        var store = new ProfileStore(PathFor("vision.json"));
-
-        var patch = new DofusOrganizer.Core.Vision.PixelBuffer(4, 3);
-        patch.SetPixel(1, 1, 200, 100, 50);
-        var anchor = DofusOrganizer.Core.Models.ImageAnchor.FromPixelBuffer(patch, 2, 1);
-        anchor.SearchRadius = 320;
-        anchor.MinimumScore = 0.82;
-
+        var store = new ProfileStore(PathFor("etapes.json"));
         var profile = new Profile
         {
             Macros =
             {
                 new Macro
                 {
-                    Name = "Zaap",
+                    Name = "Panneau",
                     Steps =
                     {
-                        new MouseClickStep { Fx = 0.3, Fy = 0.7, Anchor = anchor },
-                        new WaitForImageStep { Fx = 0.4, Fy = 0.2, TimeoutMs = 2500, WaitUntilGone = true, Anchor = anchor },
+                        new MouseDragStep
+                        {
+                            Fx = 0.3, Fy = 0.7, ToFx = 0.5, ToFy = 0.4,
+                            Button = MouseButton.Left, IntermediateMoves = 12,
+                        },
                         new ScrollStep { Fx = 0.6, Fy = 0.5, Direction = ScrollDirection.Up, Notches = 7 },
                     },
                 },
@@ -137,42 +99,14 @@ public class ProfileStoreTests : IDisposable
         store.Save(profile);
         var macro = Assert.Single(store.Load().Macros);
 
-        var click = Assert.IsType<MouseClickStep>(macro.Steps[0]);
-        Assert.NotNull(click.Anchor);
-        Assert.Equal(4, click.Anchor!.Width);
-        Assert.Equal(3, click.Anchor.Height);
-        Assert.Equal(2, click.Anchor.OffsetX);
-        Assert.Equal(320, click.Anchor.SearchRadius);
-        Assert.Equal(0.82, click.Anchor.MinimumScore, 3);
+        var drag = Assert.IsType<MouseDragStep>(macro.Steps[0]);
+        Assert.Equal(0.5, drag.ToFx, 6);
+        Assert.Equal(0.4, drag.ToFy, 6);
+        Assert.Equal(12, drag.IntermediateMoves);
 
-        // L'image doit revenir pixel pour pixel : c'est elle qui sera comparée à l'écran.
-        var restored = click.Anchor.ToPixelBuffer();
-        Assert.NotNull(restored);
-        Assert.Equal(patch.Pixels, restored!.Pixels);
-
-        var wait = Assert.IsType<WaitForImageStep>(macro.Steps[1]);
-        Assert.True(wait.WaitUntilGone);
-        Assert.Equal(2500, wait.TimeoutMs);
-        Assert.NotNull(wait.Anchor);
-
-        var scroll = Assert.IsType<ScrollStep>(macro.Steps[2]);
+        var scroll = Assert.IsType<ScrollStep>(macro.Steps[1]);
         Assert.Equal(ScrollDirection.Up, scroll.Direction);
         Assert.Equal(7, scroll.Notches);
-    }
-
-    [Fact]
-    public void Un_ancrage_abime_ne_fait_pas_planter_la_lecture()
-    {
-        // Le profil est un fichier texte que l'utilisateur peut éditer : une image
-        // tronquée doit faire retomber l'étape sur ses coordonnées, pas lever.
-        var anchor = new DofusOrganizer.Core.Models.ImageAnchor
-        {
-            Width = 8,
-            Height = 8,
-            Pixels = "ceci n'est pas du base64 valide !!",
-        };
-
-        Assert.Null(anchor.ToPixelBuffer());
     }
 
     [Fact]

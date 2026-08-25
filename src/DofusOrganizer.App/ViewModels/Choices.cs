@@ -44,7 +44,6 @@ public static class Choices
         new(StepKind.Deplacement, "Déplacer la souris"),
         new(StepKind.Touche, "Touche"),
         new(StepKind.Attente, "Attente"),
-        new(StepKind.AttenteImage, "Attendre une image"),
         new(StepKind.Molette, "Molette"),
         new(StepKind.Focus, "Changer de fenêtre"),
         new(StepKind.PourChaquePersonnage, "Pour chaque personnage"),

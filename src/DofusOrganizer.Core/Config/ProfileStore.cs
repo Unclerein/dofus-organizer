@@ -32,7 +32,10 @@ public sealed class ProfileStore(string path)
 
         try
         {
-            string json = File.ReadAllText(Path);
+            // Les étapes d'un type disparu sont écartées avant lecture : sans cela le lecteur
+            // lèverait sur le discriminant inconnu, et le repli ci-dessous repartirait d'un
+            // profil neuf — personnages et raccourcis compris.
+            string json = ProfileMigration.DropUnknownSteps(File.ReadAllText(Path));
             return JsonSerializer.Deserialize<Profile>(json, JsonOptions) ?? CreateDefault();
         }
         catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)

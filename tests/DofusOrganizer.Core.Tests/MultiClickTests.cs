@@ -2,7 +2,6 @@ using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Macros;
 using DofusOrganizer.Core.Models;
 using DofusOrganizer.Core.Organizer;
-using DofusOrganizer.Core.Vision;
 using Xunit;
 
 namespace DofusOrganizer.Core.Tests;
@@ -140,61 +139,6 @@ public class MultiClickTests
             a => Assert.Equal(new RecordedAction.Delay(Interval), a),
             a => Assert.IsType<RecordedAction.Click>(a),
             a => Assert.Equal(new RecordedAction.Delay(600), a));
-    }
-
-    [Fact]
-    public async Task Une_etape_ancree_ne_cherche_l_image_qu_une_fois()
-    {
-        var windows = new FakeWindowManager
-        {
-            Screen = VirtualScreen.Single(1920, 1080),
-            Surface = new PixelBuffer(1920, 1080),
-        };
-        windows.AddWindow(1, "Meneur", new ClientBounds(new ScreenPoint(0, 0), 800, 600));
-        windows.Foreground = 1;
-
-        var profile = new Profile();
-        profile.Settings.FocusSettleDelayMs = 0;
-        profile.Settings.ActionDelayMs = 0;
-        profile.Settings.MultiClickIntervalMs = Interval;
-
-        var roster = new CharacterRoster();
-        roster.Sync(windows.Windows, profile.Characters);
-
-        // Un motif reconnaissable, décalé de 40 px sous la position enregistrée.
-        var patch = new PixelBuffer(24, 24);
-        var shape = new Random(7);
-        for (int y = 0; y < 24; y++)
-        {
-            for (int x = 0; x < 24; x++)
-            {
-                byte r = (byte)shape.Next(200, 256), g = (byte)shape.Next(0, 60), b = (byte)shape.Next(120, 200);
-                patch.SetPixel(x, y, r, g, b);
-                windows.Surface.SetPixel(400 - 12 + x, 340 - 12 + y, r, g, b);
-            }
-        }
-
-        var actions = await RunAsync(
-            MacroOf(new MouseClickStep
-            {
-                Fx = 0.5,
-                Fy = 0.5,
-                Clicks = 2,
-                Anchor = ImageAnchor.FromPixelBuffer(patch, 12, 12),
-            }),
-            windows, roster, profile);
-
-        // Une seule capture d'écran : rechercher l'image entre les deux clics relancerait la
-        // reconnaissance sur une ligne dont l'aspect vient de changer, et le second clic
-        // pourrait atterrir ailleurs.
-        Assert.Single(windows.Captures);
-
-        var clicks = actions.OfType<RecordedAction.Click>().ToList();
-        Assert.Equal(2, clicks.Count);
-        Assert.Equal(clicks[0].Point, clicks[1].Point);
-        Assert.Equal(
-            CoordinateMapper.ToAbsolute(new ScreenPoint(400, 340), windows.GetVirtualScreen()),
-            clicks[0].Point);
     }
 
     [Fact]

@@ -11,15 +11,13 @@ public sealed class AppSettings : NotifyBase
     private Hotkey? _repeatOnTeamHotkey;
     private int _teamReplayDelayMs = 600;
     private bool _recordDelays;
-    private bool _anchorClicksToImages = true;
-    private int _anchorPatchWidth = 160;
-    private int _anchorPatchHeight = 48;
     private bool _recordingFeedbackSound = true;
     private bool _hotkeysOnlyWhenGameFocused = true;
     private bool _swallowBoundKeys = true;
     private int _focusSettleDelayMs = 120;
     private int _actionDelayMs = 30;
     private int _multiClickIntervalMs = 80;
+    private int _scrollDelayMs = 40;
     private bool _useScanCodes = true;
 
     /// <summary>
@@ -109,35 +107,6 @@ public sealed class AppSettings : NotifyBase
     }
 
     /// <summary>
-    /// Capturer, à chaque clic enregistré, le fragment d'écran qui l'entoure. C'est ce qui
-    /// permet au rejeu de retrouver la cible quand elle a bougé chez un autre personnage.
-    /// </summary>
-    public bool AnchorClicksToImages
-    {
-        get => _anchorClicksToImages;
-        set => Set(ref _anchorClicksToImages, value);
-    }
-
-    /// <summary>
-    /// Largeur du fragment capturé. Une ligne d'interface est large et courte : un fragment
-    /// à sa forme capture le libellé entier plutôt que quelques caractères, ce qui évite de
-    /// confondre deux lignes voisines. Plus grand, il est plus reconnaissable mais plus long
-    /// à chercher et plus sensible à ce qui change autour de la cible.
-    /// </summary>
-    public int AnchorPatchWidth
-    {
-        get => _anchorPatchWidth;
-        set => Set(ref _anchorPatchWidth, Math.Clamp(value, 16, 600));
-    }
-
-    /// <summary>Hauteur du fragment capturé.</summary>
-    public int AnchorPatchHeight
-    {
-        get => _anchorPatchHeight;
-        set => Set(ref _anchorPatchHeight, Math.Clamp(value, 16, 600));
-    }
-
-    /// <summary>
     /// Émettre un bip au début et à la fin d'un enregistrement. En plein écran, c'est le
     /// seul moyen de savoir que la capture tourne.
     /// </summary>
@@ -182,6 +151,20 @@ public sealed class AppSettings : NotifyBase
     /// typiquement la touche du havre-sac, dont le panneau met parfois un moment à s'ouvrir.
     /// </summary>
     public List<SlowKey> SlowKeys { get; set; } = [];
+
+    /// <summary>
+    /// Pause après un cran de molette.
+    ///
+    /// Court, et distinct du délai entre actions : une liste défile à la vitesse où on la fait
+    /// tourner, il n'y a ni panneau à ouvrir ni contenu à charger. Lui appliquer le délai du
+    /// rejeu sur l'équipe rendrait le moindre défilement interminable, multiplié par le nombre
+    /// de crans et de personnages.
+    /// </summary>
+    public int ScrollDelayMs
+    {
+        get => _scrollDelayMs;
+        set => Set(ref _scrollDelayMs, Math.Clamp(value, 0, 2000));
+    }
 
     /// <summary>
     /// Écart entre deux clics d'un même geste — un double-clic, par exemple.

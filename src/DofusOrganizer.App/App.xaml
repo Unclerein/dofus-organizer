@@ -5,8 +5,6 @@
              ShutdownMode="OnMainWindowClose">
   <Application.Resources>
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
-    <vm:AnchorPreviewConverter x:Key="AnchorPreview" />
-    <vm:AnchorSummaryConverter x:Key="AnchorSummary" />
     <Style TargetType="Button">
       <Setter Property="Padding" Value="10,4" />
       <Setter Property="Margin" Value="0,0,6,0" />

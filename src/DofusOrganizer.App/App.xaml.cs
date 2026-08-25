@@ -95,11 +95,8 @@ public partial class App : Application
         model.MoveStepDownCommand.Execute(null);
         model.RemoveStepCommand.Execute(null);
 
-        // Ajout puis suppression d'une diffusion : le panneau se lie à la sélection, et une
+        // Ajout puis suppression d'une touche lente : le panneau se lie à la sélection, et une
         // liste vidée est précisément le cas où une liaison mal écrite se voit.
-        model.AddBroadcastCommand.Execute(null);
-        model.DeleteBroadcastCommand.Execute(null);
-
         model.AddSlowKeyCommand.Execute(null);
         model.DeleteSlowKeyCommand.Execute(null);
 

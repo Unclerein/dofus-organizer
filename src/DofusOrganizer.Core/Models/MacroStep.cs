@@ -28,7 +28,6 @@ public enum FocusTarget
 [JsonDerivedType(typeof(MouseMoveStep), "move")]
 [JsonDerivedType(typeof(KeyStep), "key")]
 [JsonDerivedType(typeof(DelayStep), "delay")]
-[JsonDerivedType(typeof(WaitForImageStep), "waitimage")]
 [JsonDerivedType(typeof(ScrollStep), "scroll")]
 [JsonDerivedType(typeof(MouseDragStep), "drag")]
 public abstract class MacroStep : NotifyBase
@@ -117,18 +116,6 @@ public abstract class PointerStep : MacroStep
 {
     private double _fx = 0.5;
     private double _fy = 0.5;
-    private ImageAnchor? _anchor;
-
-    /// <summary>
-    /// Image à retrouver pour situer le point. Quand elle est renseignée, la position n'est
-    /// plus qu'un repère délimitant la recherche : c'est ce qui permet à une étape de suivre
-    /// une liste qui a défilé ou un panneau ouvert ailleurs. Null pour viser une position fixe.
-    /// </summary>
-    public ImageAnchor? Anchor
-    {
-        get => _anchor;
-        set { if (Set(ref _anchor, value)) RaiseDescription(); }
-    }
 
     /// <summary>Position horizontale, en fraction de la largeur de la zone client (0 = bord gauche, 1 = bord droit).</summary>
     public double Fx
@@ -178,8 +165,7 @@ public sealed class MouseClickStep : PointerStep
                 _ => "Clic gauche",
             };
             string repeat = Clicks > 1 ? $" ×{Clicks}" : "";
-            string how = Anchor is { IsEmpty: false } ? "sur l'image repérée près de " : "à ";
-            return $"{button}{repeat} {how}{PositionText}";
+            return $"{button}{repeat} à {PositionText}";
         }
     }
 }
@@ -193,10 +179,9 @@ public sealed class MouseMoveStep : PointerStep
 /// Saisit un point, déplace en maintenant le bouton, puis relâche.
 ///
 /// Sert à déplacer un panneau dessiné par le jeu, que le système ne connaît pas comme une
-/// fenêtre et ne peut donc pas déplacer lui-même. Le point de départ mérite presque toujours
-/// un ancrage : si le panneau s'ouvre ailleurs chez un autre personnage, saisir à une position
-/// fixe ne l'attraperait pas. Le point d'arrivée, lui, reste fixe — c'est ce qui fait que tous
-/// les personnages voient le panneau atterrir au même endroit.
+/// fenêtre et ne peut donc pas déplacer lui-même. Les deux points étant fixes, le panneau
+/// atterrit au même endroit chez tous les personnages — à condition qu'il se soit ouvert au
+/// même endroit chez chacun.
 /// </summary>
 public sealed class MouseDragStep : PointerStep
 {
@@ -240,11 +225,7 @@ public sealed class MouseDragStep : PointerStep
 
     public override string Description
     {
-        get
-        {
-            string how = Anchor is { IsEmpty: false } ? "l'image repérée près de " : "";
-            return $"Glisser depuis {how}{PositionText} jusqu'à {ToFx * 100:0.#} % / {ToFy * 100:0.#} %";
-        }
+        get => $"Glisser depuis {PositionText} jusqu'à {ToFx * 100:0.#} % / {ToFy * 100:0.#} %";
     }
 }
 
@@ -298,37 +279,6 @@ public sealed class DelayStep : MacroStep
     }
 
     public override string Description => $"Attendre {Milliseconds} ms";
-}
-
-/// <summary>
-/// Attend qu'une image apparaisse ou disparaisse à l'écran.
-///
-/// C'est ce qui remplace les attentes devinées : l'ouverture d'un panneau ou d'une liste
-/// devient un fait constaté et non un pari sur 300 ms. Trop court, la macro clique dans le
-/// vide ; trop long, elle traîne sur chaque personnage.
-/// </summary>
-public sealed class WaitForImageStep : PointerStep
-{
-    private bool _waitUntilGone;
-    private int _timeoutMs = 5000;
-
-    /// <summary>Attendre la disparition plutôt que l'apparition — utile après avoir fermé un panneau.</summary>
-    public bool WaitUntilGone
-    {
-        get => _waitUntilGone;
-        set { if (Set(ref _waitUntilGone, value)) RaiseDescription(); }
-    }
-
-    /// <summary>Au-delà, la macro poursuit en signalant l'échec plutôt que de rester bloquée.</summary>
-    public int TimeoutMs
-    {
-        get => _timeoutMs;
-        set { if (Set(ref _timeoutMs, Math.Clamp(value, 100, 60000))) RaiseDescription(); }
-    }
-
-    public override string Description => Anchor is { IsEmpty: false }
-        ? $"Attendre {(WaitUntilGone ? "la disparition" : "l'apparition")} de l'image près de {PositionText} ({TimeoutMs} ms max)"
-        : "Attendre une image (aucune image capturée)";
 }
 
 public enum ScrollDirection { Up, Down }

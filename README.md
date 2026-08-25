@@ -37,33 +37,6 @@ dotnet publish src/DofusOrganizer.App -c Release -r win-x64 --self-contained tru
 **Jouez en mode fenêtré ou fenêtré sans bordure.** En plein écran exclusif, Windows gère
 mal le passage d'une fenêtre à l'autre et les changements sont lents ou refusés.
 
-## Envoyer une touche à toute l'équipe
-
-S'asseoir, boire une potion, ouvrir la carte, se déconnecter : des gestes identiques sur
-chaque personnage, qui n'ont rien à faire dans une macro — il n'y a ni position à retrouver
-ni image à reconnaître, juste une frappe à répéter.
-
-Dans **Réglages**, section « Diffusion d'une touche à l'équipe » : **Ajouter**, nommez
-l'entrée, assignez le **déclencheur** (la touche que *vous* pressez) puis la **touche
-envoyée** (celle que reçoivent les personnages). **Tester la diffusion** l'essaie tout de
-suite.
-
-Les deux sont distinctes à dessein : cela permet de diffuser une touche dont le jeu se sert
-déjà — `F1`, `Espace` — sans la perdre en usage ordinaire, puisque le déclencheur, lui, est
-absorbé avant d'atteindre le jeu. Quand les deux se confondent, assigner le déclencheur
-remplit automatiquement la touche envoyée.
-
-**Laissez « Envoyer aussi au personnage actif » coché.** C'est le réglage juste tant que
-« Empêcher les touches assignées d'atteindre le jeu » l'est aussi : le déclencheur étant
-absorbé, le client que vous jouez ne le reçoit jamais, et sans cette case le meneur serait
-le seul à ne rien faire. À décocher seulement si vous avez désactivé l'absorption, auquel
-cas il recevrait deux frappes.
-
-La diffusion passe sur chaque client à son tour, il ne s'agit pas d'un envoi simultané :
-comptez un changement de fenêtre par personnage, soit environ une seconde à huit clients.
-Le délai est réglable par « Après un changement de fenêtre » dans les Réglages, et l'arrêt
-d'urgence l'interrompt comme n'importe quelle macro.
-
 ## Écrire une macro de soin
 
 L'idée : enregistrer la séquence sur **un seul** personnage, et laisser la boucle la
@@ -88,9 +61,9 @@ Seuls les clics faits dans un client Dofus sont retenus — l'organizer lui-mêm
 applications sont ignorés.
 
 Les positions sont enregistrées en fraction de la fenêtre et non en pixels de l'écran :
-la macro reste juste si vous déplacez ou redimensionnez vos clients ensuite. Chaque clic
-emporte en plus l'image de ce qu'il visait — au rejeu, l'outil cherche cette image et clique
-là où il la trouve, la position ne servant qu'à délimiter la recherche.
+la macro reste juste si vous déplacez ou redimensionnez vos clients ensuite. Elle suppose en
+revanche que l'interface soit dans le même état chez tout le monde — c'est à vous d'y veiller,
+l'outil rejoue des positions, il ne regarde pas l'écran.
 
 ## Téléporter toute l'équipe au même zaap
 
@@ -107,8 +80,7 @@ quel zaap il s'agit, il refait simplement ce que vous venez de faire.
 
 La séquence capturée est conservée dans l'onglet **Macros** sous le nom « Refaire sur l'équipe
 (dernière capture) », remplacée à chaque usage. C'est là qu'il faut aller quand le rejeu déçoit :
-on y voit les images capturées et l'enchaînement obtenu, on peut corriger une étape ou un seuil,
-et relancer avec **Tester**.
+on y lit l'enchaînement obtenu, on corrige une étape, et on relance avec **Tester**.
 
 ### Quand une touche met du temps à agir
 
@@ -127,14 +99,11 @@ propriété du jeu, pas d'une capture — exprimée ainsi, le réglage survit à
 
 Sachez ce que vous achetez : une attente fixe doit être taillée pour le pire cas, subie même les
 fois où l'ouverture est immédiate, et multipliée par le nombre de personnages — 1,5 s sur huit
-clients, c'est douze secondes ajoutées au voyage. La réponse juste à une attente variable est
-l'**attente sur image**, qui constate l'ouverture au lieu de la parier ; elle demande une image
-d'ancrage, que seule une macro écrite à la main peut lui donner.
+clients, c'est douze secondes ajoutées au voyage.
 
 **Passez par la liste des zaaps, pas par la carte du monde.** La carte peut avoir un zoom
 différent selon le personnage, et un même zaap ne s'y trouve alors pas au même endroit ; une
-liste de texte, elle, s'affiche identiquement partout. La reconnaissance d'image ne rattrape
-pas un changement d'échelle.
+liste de texte, elle, s'affiche identiquement partout.
 
 ## Aligner un panneau identiquement sur tous les personnages
 
@@ -144,41 +113,17 @@ enregistrez ce déplacement une fois :
 
 1. Ouvrez le panneau sur votre meneur, lancez la capture, **faites glisser le panneau à la main**
    jusqu'à sa place, arrêtez la capture.
-2. L'étape apparaît comme « Glisser depuis … jusqu'à … ». Vérifiez dans son aperçu que l'image
-   de saisie montre bien un morceau reconnaissable du panneau — sa barre de titre par exemple.
-3. Rejouez sur l'équipe : chaque personnage retrouve son panneau à son apparence, le saisit là,
-   et le dépose à la même position.
+2. L'étape apparaît comme « Glisser depuis … jusqu'à … ».
+3. Rejouez sur l'équipe : chaque personnage saisit son panneau au même endroit et le dépose à la
+   même position.
 
 C'est un panneau dessiné par le jeu, pas une fenêtre du système : Windows ne peut pas le
-déplacer, seul le glisser-déposer le peut. Le point de saisie doit donc être ancré à une image,
-le panneau ne s'ouvrant pas forcément au même endroit chez chacun — mais le point de dépôt reste
-fixe, et c'est cela qui aligne tout le monde.
+déplacer, seul le glisser-déposer le peut. Les deux points étant fixes, cela suppose que le
+panneau se soit ouvert au même endroit chez chacun — c'est le cas quand ils sont restés alignés
+depuis la dernière fois.
 
-## Enchaîner un dialogue de PNJ
+### À savoir sur le rejeu
 
-Même principe, avec une macro cette fois : clic sur le PNJ, **attente sur image** jusqu'à ce
-que le panneau apparaisse, clic sur la réponse, attente, fermeture. L'attente sur image
-remplace les délais devinés — l'ouverture du panneau devient un fait constaté et non un pari
-sur 300 ms.
-
-Cela vaut pour un PNJ dont l'enchaînement est toujours le même. Un dialogue dont les réponses
-varient sort de ce que l'outil sait faire : il ne lit pas le texte, il reconnaît des images.
-
-### À savoir sur la reconnaissance
-
-- L'image capturée est **large et courte** (160 × 48 px par défaut), à la forme d'une ligne
-  d'interface : un fragment carré et étroit peut ne contenir que quelques caractères — voire du
-  fond vide si le clic tombe après la fin d'un libellé court — et ressemble alors à toutes les
-  autres lignes. C'est la première chose à vérifier dans l'aperçu si la mauvaise ligne est
-  choisie.
-- La ressemblance exigée est volontairement tolérante (85 %), le rendu n'étant jamais identique
-  au pixel près d'une image à l'autre. Si une image n'est pas retrouvée, baissez ce seuil dans
-  l'éditeur d'étape ; si c'est la mauvaise qui est trouvée, élargissez plutôt l'image avant de
-  monter le seuil.
-- **Une image introuvable ne bloque pas la macro** : l'étape retombe sur sa position
-  enregistrée et le signale dans la barre d'état. Le rejeu continue.
-- L'aperçu affiché dans l'éditeur montre exactement ce qui a été capturé : c'est le premier
-  endroit à regarder quand une étape se comporte mal.
 - Un **double-clic** est reconnu comme tel à la capture et rejoué comme un seul geste. L'étape
   s'affiche alors « ×2 » ; le champ **Répétitions** permet aussi de le régler à la main.
 
@@ -188,6 +133,10 @@ varient sort de ce que l'outil sait faire : il ne lit pas le texte, il reconnaî
   long, il dépasse le seuil du système — une demi-seconde en général — et le jeu voit deux clics
   indépendants. **Si un double-clic n'aboutit pas alors que l'étape affiche bien « ×2 », c'est ce
   réglage qu'il faut monter**, à 120 puis 150 ms. Au-delà de 400 ms c'est inutile.
+
+- La **molette** a son propre délai, court et distinct des autres : une liste défile à la vitesse
+  où on la fait tourner, sans rien à ouvrir ni à charger. « Après un cran de molette » dans les
+  Réglages, si un défilement va trop vite pour le jeu.
 
 Si des clics se perdent, augmentez « Après un changement de fenêtre » dans les Réglages —
 le client a besoin de quelques images avant d'accepter une entrée.
@@ -223,8 +172,8 @@ La configuration est un simple fichier JSON, lisible et modifiable à la main :
 ## Ce que fait — et ne fait pas — cet outil
 
 Les macros sont **déclenchées par vous**, se déroulent une fois et s'arrêtent. Il n'y a ni
-boucle automatique, ni lecture de l'état du jeu, ni prise de décision : l'outil rejoue une
-séquence de clics enregistrée, rien de plus.
+boucle automatique, ni lecture de l'écran, ni prise de décision : l'outil rejoue une séquence
+de clics enregistrée aux positions où vous les avez faits, rien de plus.
 
 Cela reste de l'automatisation d'entrées, et les conditions d'utilisation d'Ankama
 encadrent ce genre d'usage. Un organizer multi-comptes est d'un usage courant ; un

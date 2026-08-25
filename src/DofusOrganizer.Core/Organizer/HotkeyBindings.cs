@@ -2,10 +2,9 @@ using DofusOrganizer.Core.Models;
 
 namespace DofusOrganizer.Core.Organizer;
 
-public enum HotkeyActionKind { FocusSlot, FocusNext, FocusPrevious, RunMacro, Panic, ToggleRecording, RepeatOnTeam, Broadcast }
+public enum HotkeyActionKind { FocusSlot, FocusNext, FocusPrevious, RunMacro, Panic, ToggleRecording, RepeatOnTeam }
 
-public sealed record HotkeyAction(
-    HotkeyActionKind Kind, CharacterSlot? Slot = null, Macro? Macro = null, BroadcastKey? Broadcast = null);
+public sealed record HotkeyAction(HotkeyActionKind Kind, CharacterSlot? Slot = null, Macro? Macro = null);
 
 /// <summary>
 /// Table de correspondance touche -> action, reconstruite à chaque modification du profil.
@@ -33,9 +32,6 @@ public sealed class HotkeyBindings
 
         foreach (var macro in profile.Macros)
             Add(table, macro.Hotkey, new HotkeyAction(HotkeyActionKind.RunMacro, Macro: macro));
-
-        foreach (var broadcast in profile.Broadcasts)
-            Add(table, broadcast.Trigger, new HotkeyAction(HotkeyActionKind.Broadcast, Broadcast: broadcast));
 
         return table;
     }
@@ -83,7 +79,5 @@ public sealed class HotkeyBindings
             if (slot.Hotkey is { IsEmpty: false }) yield return slot.Hotkey;
         foreach (var macro in profile.Macros)
             if (macro.Hotkey is { IsEmpty: false }) yield return macro.Hotkey;
-        foreach (var broadcast in profile.Broadcasts)
-            if (broadcast.Trigger is { IsEmpty: false }) yield return broadcast.Trigger;
     }
 }

@@ -2,7 +2,6 @@ using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Macros;
 using DofusOrganizer.Core.Models;
 using DofusOrganizer.Core.Organizer;
-using DofusOrganizer.Core.Vision;
 using Xunit;
 
 namespace DofusOrganizer.Core.Tests;
@@ -10,29 +9,13 @@ namespace DofusOrganizer.Core.Tests;
 /// <summary>
 /// Le glisser-déposer sert à replacer un panneau dessiné par le jeu, que le système ne
 /// connaît pas comme une fenêtre et ne peut donc pas déplacer. Ce qui compte : le bouton
-/// reste tenu pendant tout le trajet, et le point de saisie suit l'image quand le panneau
-/// s'est ouvert ailleurs.
+/// reste tenu pendant tout le trajet, et il est relâché quoi qu'il arrive.
 /// </summary>
 public class DragTests
 {
-    private const int PatchSize = 32;
-    private const int PatchOffset = PatchSize / 2;
-
     private static (FakeWindowManager Windows, CharacterRoster Roster, Profile Profile) BuildTeam()
     {
-        var windows = new FakeWindowManager
-        {
-            Screen = VirtualScreen.Single(1920, 1080),
-            Surface = new PixelBuffer(1920, 1080),
-        };
-
-        for (int y = 0; y < 1080; y++)
-        {
-            for (int x = 0; x < 1920; x++)
-            {
-                windows.Surface.SetPixel(x, y, (byte)((x * 5 + y) % 200), (byte)((y * 7) % 200), (byte)((x * 3) % 200));
-            }
-        }
+        var windows = new FakeWindowManager { Screen = VirtualScreen.Single(1920, 1080) };
 
         windows.AddWindow(1, "Meneur", new ClientBounds(new ScreenPoint(0, 0), 800, 600));
         windows.AddWindow(2, "Second", new ClientBounds(new ScreenPoint(800, 0), 800, 600));
@@ -44,26 +27,6 @@ public class DragTests
         var roster = new CharacterRoster();
         roster.Sync(windows.Windows, profile.Characters);
         return (windows, roster, profile);
-    }
-
-    private static PixelBuffer Draw(PixelBuffer surface, int x, int y)
-    {
-        var patch = new PixelBuffer(PatchSize, PatchSize);
-        var shape = new Random(77);
-
-        for (int dy = 0; dy < PatchSize; dy++)
-        {
-            for (int dx = 0; dx < PatchSize; dx++)
-            {
-                byte red = (byte)shape.Next(200, 256);
-                byte green = (byte)shape.Next(0, 50);
-                byte blue = (byte)shape.Next(0, 50);
-                patch.SetPixel(dx, dy, red, green, blue);
-                surface.SetPixel(x + dx, y + dy, red, green, blue);
-            }
-        }
-
-        return patch;
     }
 
     private static Macro DragMacro(MouseDragStep drag) => new()
@@ -136,60 +99,6 @@ public class DragTests
         Assert.Equal(7, moves.Count);                      // départ + 5 intermédiaires + arrivée
         Assert.Equal(moves.OrderBy(x => x), moves);        // strictement croissant vers la droite
         Assert.True(moves.Distinct().Count() == moves.Count);
-    }
-
-    [Fact]
-    public async Task Le_point_de_saisie_suit_l_image_quand_le_panneau_s_est_ouvert_ailleurs()
-    {
-        // Le cas d'usage : replacer un panneau identiquement sur tous les personnages alors
-        // qu'il ne s'ouvre pas au même endroit chez chacun.
-        var (windows, roster, profile) = BuildTeam();
-
-        var patch = Draw(windows.Surface, 200 - PatchOffset, 150 - PatchOffset);
-        Draw(windows.Surface, 1100 - PatchOffset, 260 - PatchOffset);
-
-        var macro = new Macro
-        {
-            Name = "Recentrer sur l'équipe",
-            RestoreInitialWindow = false,
-            RestoreCursorPosition = false,
-            Steps =
-            {
-                new ForEachCharacterStep
-                {
-                    Steps =
-                    {
-                        new MouseDragStep
-                        {
-                            Fx = 0.25, Fy = 0.25,
-                            ToFx = 0.5, ToFy = 0.5,
-                            IntermediateMoves = 0,
-                            Anchor = ImageAnchor.FromPixelBuffer(patch, PatchOffset, PatchOffset),
-                        },
-                    },
-                },
-            },
-        };
-
-        var actions = windows.Actions;
-        var runner = new MacroRunner(windows, new FakeInputSender(actions), new FakeClock(actions));
-
-        await runner.RunAsync(macro, roster, profile.Settings, CancellationToken.None);
-
-        var screen = windows.GetVirtualScreen();
-        var presses = actions.OfType<RecordedAction.ButtonPress>().Where(b => b.Down).ToList();
-        Assert.Equal(2, presses.Count);
-
-        // Chez le second, la saisie vise 1100/260 — l'image retrouvée — et non 1000/150,
-        // qui est la position enregistrée transposée dans sa fenêtre.
-        Assert.Equal(CoordinateMapper.ToAbsolute(new ScreenPoint(200, 150), screen), presses[0].Point);
-        Assert.Equal(CoordinateMapper.ToAbsolute(new ScreenPoint(1100, 260), screen), presses[1].Point);
-
-        // L'arrivée, elle, reste la même position dans chaque fenêtre : c'est ce qui aligne
-        // le panneau identiquement d'un personnage à l'autre.
-        var releases = actions.OfType<RecordedAction.ButtonPress>().Where(b => !b.Down).ToList();
-        Assert.Equal(CoordinateMapper.ToAbsolute(new ScreenPoint(400, 300), screen), releases[0].Point);
-        Assert.Equal(CoordinateMapper.ToAbsolute(new ScreenPoint(1200, 300), screen), releases[1].Point);
     }
 
     [Fact]

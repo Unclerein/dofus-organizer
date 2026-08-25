@@ -10,7 +10,6 @@ public sealed class MainViewModel : ObservableObject
     private readonly OrganizerService _service;
     private CharacterRowViewModel? _selectedCharacter;
     private MacroEditorViewModel? _selectedMacro;
-    private BroadcastKey? _selectedBroadcast;
     private SlowKey? _selectedSlowKey;
     private string _status = "Prêt.";
     private bool _macroRunning;
@@ -61,14 +60,6 @@ public sealed class MainViewModel : ObservableObject
         MoveStepDownCommand = new RelayCommand(() => SelectedMacro?.MoveSelected(+1), () => SelectedMacro?.HasSelection == true);
 
         ToggleRecordingCommand = new RelayCommand(ToggleRecording, () => SelectedMacro is not null);
-        CaptureAnchorCommand = new RelayCommand(async () => await CaptureAnchorAsync(), () => SelectedMacro?.HasSelection == true);
-        ClearAnchorCommand = new RelayCommand(ClearAnchor, () => SelectedMacro?.HasSelection == true);
-
-        AddBroadcastCommand = new RelayCommand(AddBroadcast);
-        DeleteBroadcastCommand = new RelayCommand(DeleteBroadcast, () => SelectedBroadcast is not null);
-        AssignBroadcastTriggerCommand = new RelayCommand(async () => await AssignBroadcastHotkeyAsync(trigger: true), () => SelectedBroadcast is not null);
-        AssignBroadcastKeyCommand = new RelayCommand(async () => await AssignBroadcastHotkeyAsync(trigger: false), () => SelectedBroadcast is not null);
-        RunBroadcastCommand = new RelayCommand(async () => await RunBroadcastAsync(), () => SelectedBroadcast is not null && !MacroRunning);
 
         AddSlowKeyCommand = new RelayCommand(AddSlowKey);
         DeleteSlowKeyCommand = new RelayCommand(DeleteSlowKey, () => SelectedSlowKey is not null);
@@ -85,9 +76,6 @@ public sealed class MainViewModel : ObservableObject
         SyncMacros();
         SelectedMacro = Macros.FirstOrDefault();
 
-        foreach (var broadcast in Profile.Broadcasts) Broadcasts.Add(broadcast);
-        SelectedBroadcast = Broadcasts.FirstOrDefault();
-
         foreach (var slow in Settings.SlowKeys) SlowKeys.Add(slow);
         SelectedSlowKey = SlowKeys.FirstOrDefault();
 
@@ -101,13 +89,6 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<CharacterRowViewModel> Characters { get; } = [];
 
     public ObservableCollection<MacroEditorViewModel> Macros { get; } = [];
-
-    /// <summary>
-    /// Reflet observable de <see cref="Profile.Broadcasts"/>, qui est une simple liste : les
-    /// deux sont modifiées ensemble, l'une pour l'affichage, l'autre pour ce qui est écrit
-    /// dans le profil.
-    /// </summary>
-    public ObservableCollection<BroadcastKey> Broadcasts { get; } = [];
 
     /// <summary>Reflet observable de <see cref="AppSettings.SlowKeys"/>, modifié de pair avec elle.</summary>
     public ObservableCollection<SlowKey> SlowKeys { get; } = [];
@@ -141,19 +122,6 @@ public sealed class MainViewModel : ObservableObject
     }
 
     private void OnMacroChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => RefreshCommands();
-
-    public BroadcastKey? SelectedBroadcast
-    {
-        get => _selectedBroadcast;
-        set
-        {
-            if (!Set(ref _selectedBroadcast, value)) return;
-            Raise(nameof(HasBroadcast));
-            RefreshCommands();
-        }
-    }
-
-    public bool HasBroadcast => _selectedBroadcast is not null;
 
     public SlowKey? SelectedSlowKey
     {
@@ -209,13 +177,6 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand MoveStepUpCommand { get; }
     public RelayCommand MoveStepDownCommand { get; }
     public RelayCommand ToggleRecordingCommand { get; }
-    public RelayCommand CaptureAnchorCommand { get; }
-    public RelayCommand ClearAnchorCommand { get; }
-    public RelayCommand AddBroadcastCommand { get; }
-    public RelayCommand DeleteBroadcastCommand { get; }
-    public RelayCommand AssignBroadcastTriggerCommand { get; }
-    public RelayCommand AssignBroadcastKeyCommand { get; }
-    public RelayCommand RunBroadcastCommand { get; }
     public RelayCommand AddSlowKeyCommand { get; }
     public RelayCommand DeleteSlowKeyCommand { get; }
     public RelayCommand AssignSlowKeyCommand { get; }
@@ -403,7 +364,6 @@ public sealed class MainViewModel : ObservableObject
             StepKind.Deplacement => new MouseMoveStep(),
             StepKind.Touche => new KeyStep(),
             StepKind.Attente => new DelayStep(),
-            StepKind.AttenteImage => new WaitForImageStep(),
             StepKind.Molette => new ScrollStep(),
             StepKind.Focus => new FocusStep(),
             _ => new ForEachCharacterStep(),
@@ -474,107 +434,6 @@ public sealed class MainViewModel : ObservableObject
 
         SelectedMacro.Replace(steps);
         Status = $"{steps.Count} action(s) enregistrée(s).";
-    }
-
-    /// <summary>
-    /// Relève l'image que l'étape sélectionnée devra reconnaître, au prochain clic dans un
-    /// client Dofus. Passer par un vrai clic plutôt que par des coordonnées à saisir : on
-    /// désigne ce qu'on voit.
-    /// </summary>
-    private async Task CaptureAnchorAsync()
-    {
-        var step = SelectedMacro?.SelectedStep;
-        if (step is not PointerStep)
-        {
-            Status = "Sélectionnez d'abord une étape qui vise un point à l'écran.";
-            return;
-        }
-
-        Status = "Cliquez sur l'élément à reconnaître, dans une fenêtre Dofus.";
-
-        try
-        {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var anchor = await _service.CaptureAnchorAsync(timeout.Token);
-            if (anchor is null) return;
-
-            ((PointerStep)step).Anchor = anchor;
-
-            _service.Save();
-            Status = $"Image de {anchor.Width}×{anchor.Height} px capturée.";
-        }
-        catch (OperationCanceledException)
-        {
-            _service.CancelHotkeyCapture();
-            Status = "Capture d'image annulée.";
-        }
-    }
-
-    private void ClearAnchor()
-    {
-        if (SelectedMacro?.SelectedStep is PointerStep pointer)
-        {
-            pointer.Anchor = null;
-            _service.Save();
-            Status = "Ancrage retiré : le clic visera sa position enregistrée.";
-        }
-    }
-
-    private void AddBroadcast()
-    {
-        var broadcast = new BroadcastKey { Name = $"Diffusion {Profile.Broadcasts.Count + 1}" };
-        Profile.Broadcasts.Add(broadcast);
-        Broadcasts.Add(broadcast);
-        SelectedBroadcast = broadcast;
-        _service.ApplyBindings();
-    }
-
-    private void DeleteBroadcast()
-    {
-        if (SelectedBroadcast is null) return;
-
-        // Aucune confirmation : une diffusion tient en trois champs et se refait en dix
-        // secondes, là où une macro représente une capture entière.
-        Profile.Broadcasts.Remove(SelectedBroadcast);
-        Broadcasts.Remove(SelectedBroadcast);
-        SelectedBroadcast = Broadcasts.FirstOrDefault();
-        _service.ApplyBindings();
-    }
-
-    /// <summary>
-    /// Assigne l'un des deux raccourcis d'une diffusion : celui qui la déclenche, ou la touche
-    /// qui part dans le jeu. À la création, choisir le déclencheur remplit aussi la touche
-    /// envoyée — c'est le cas courant, et laisser une diffusion sans rien à envoyer ne servirait
-    /// personne.
-    /// </summary>
-    private async Task AssignBroadcastHotkeyAsync(bool trigger)
-    {
-        if (SelectedBroadcast is null) return;
-
-        string label = trigger
-            ? $"déclencher « {SelectedBroadcast.Name} »"
-            : $"envoyer à l'équipe pour « {SelectedBroadcast.Name} »";
-
-        var hotkey = await CaptureAsync($"Appuyez sur la touche pour {label}");
-        if (hotkey is null) return;
-
-        if (trigger)
-        {
-            SelectedBroadcast.Trigger = hotkey;
-            SelectedBroadcast.Sent ??= hotkey;
-        }
-        else
-        {
-            SelectedBroadcast.Sent = hotkey;
-        }
-
-        _service.ApplyBindings();
-    }
-
-    private async Task RunBroadcastAsync()
-    {
-        if (SelectedBroadcast is null) return;
-        await _service.BroadcastAsync(SelectedBroadcast);
     }
 
     private void AddSlowKey()
@@ -666,13 +525,11 @@ public sealed class MainViewModel : ObservableObject
             DeleteMacroCommand, AssignMacroHotkeyCommand, ClearMacroHotkeyCommand,
             RunMacroCommand, StopMacroCommand, AddStepCommand, RemoveStepCommand,
             MoveStepUpCommand, MoveStepDownCommand, ToggleRecordingCommand,
-            CaptureAnchorCommand, ClearAnchorCommand,
-            DeleteBroadcastCommand, AssignBroadcastTriggerCommand, AssignBroadcastKeyCommand,
-            RunBroadcastCommand, DeleteSlowKeyCommand, AssignSlowKeyCommand,
+            DeleteSlowKeyCommand, AssignSlowKeyCommand,
         ];
 
         foreach (var command in commands) command?.RaiseCanExecuteChanged();
     }
 }
 
-public enum StepKind { Clic, Glisser, Deplacement, Touche, Attente, AttenteImage, Molette, Focus, PourChaquePersonnage }
+public enum StepKind { Clic, Glisser, Deplacement, Touche, Attente, Molette, Focus, PourChaquePersonnage }
