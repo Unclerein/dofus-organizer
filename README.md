@@ -26,18 +26,23 @@ dotnet publish src/DofusOrganizer.App -c Release -r win-x64 --self-contained tru
 
 1. Lancez vos clients Dofus, puis Dofus Organizer. L'onglet **Personnages** liste ce qu'il
    a trouvé.
-2. Un client n'apparaît qu'une fois son personnage connecté. Avant cela son titre ne nomme
-   personne — « Dofus », puis « Dofus 3.6.10.11 - Release » — et la barre d'état les compte
-   comme « clients en cours de connexion » au lieu d'en faire des personnages. Sans quoi chaque
-   titre de passage laisserait une ligne derrière lui, et quatre clients en donneraient douze.
-3. Si la liste reste vide alors que la barre d'état annonce des clients, c'est le **motif du
-   titre** dans les Réglages qui ne correspond pas à votre version. Il attend la forme
-   « Nom - Classe - Version - Release ». Videz-le pour tout accepter tel quel, le temps de lire
-   dans la colonne « Titre de la fenêtre » ce que l'application voit.
-4. Réordonnez les personnages avec **Monter** / **Descendre** : cet ordre est celui que
+2. Un client pas encore entré en jeu apparaît avec la mention **« Écran de connexion »** et le
+   titre brut de sa fenêtre. La touche « personnage suivant » y bascule comme sur les autres,
+   ce qui sert justement à les connecter l'un après l'autre. La ligne s'efface d'elle-même dès
+   que le personnage entre en jeu, et laisse la place à son emplacement nommé.
+3. Si la liste reste sans aucun personnage nommé alors que la barre d'état annonce des clients,
+   c'est le **motif du titre** dans les Réglages qui ne correspond pas à votre version. Il
+   attend la forme « Nom - Classe - Version - Release ». Videz-le pour tout accepter tel quel,
+   le temps de lire dans la colonne « Titre de la fenêtre » ce que l'application voit.
+4. Si une fenêtre indésirable s'invite dans la liste, renseignez **Classe de fenêtre** dans les
+   Réglages : `UnityWndClass` pour les clients Dofus Unity. L'infobulle de la colonne « Titre de
+   la fenêtre » donne la classe de chaque ligne, de quoi vérifier avant de filtrer. Laissé vide,
+   le champ n'écarte rien — c'est le réglage par défaut, parce que rater le jeu serait pire
+   qu'en détecter un peu trop.
+5. Réordonnez les personnages avec **Monter** / **Descendre** : cet ordre est celui que
    suivent la touche « personnage suivant » et les boucles de macro.
-5. Sélectionnez un personnage, cliquez **Assigner**, appuyez sur la touche voulue.
-6. Dans **Réglages**, assignez la touche « personnage suivant ».
+6. Sélectionnez un personnage, cliquez **Assigner**, appuyez sur la touche voulue.
+7. Dans **Réglages**, assignez la touche « personnage suivant ».
 
 Un personnage dont le client est fermé **reste dans la liste**, grisé : c'est ce qui garde son
 raccourci et sa position d'une session à l'autre. **Oublier les absents** les retire tous d'un

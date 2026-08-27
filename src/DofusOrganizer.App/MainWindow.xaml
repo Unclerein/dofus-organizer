@@ -56,7 +56,16 @@
               <DataGridTextColumn Header="Personnage" Binding="{Binding DisplayName, UpdateSourceTrigger=LostFocus}" Width="2*" />
               <DataGridTextColumn Header="Raccourci" Binding="{Binding HotkeyLabel}" IsReadOnly="True" Width="130" />
               <DataGridTextColumn Header="État" Binding="{Binding StatusLabel}" IsReadOnly="True" Width="100" />
-              <DataGridTextColumn Header="Titre de la fenêtre" Binding="{Binding WindowTitle}" IsReadOnly="True" Width="3*" />
+              <DataGridTextColumn Header="Titre de la fenêtre" Binding="{Binding WindowTitle}" IsReadOnly="True" Width="3*">
+                <DataGridTextColumn.ElementStyle>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="Margin" Value="2,0" />
+                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                    <!-- La classe Win32 ne mérite pas une colonne, mais c'est elle qu'attend le filtre des Réglages. -->
+                    <Setter Property="ToolTip" Value="{Binding WindowClass, StringFormat={}Classe de fenêtre : {0}}" />
+                  </Style>
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
             </DataGrid.Columns>
           </DataGrid>
 

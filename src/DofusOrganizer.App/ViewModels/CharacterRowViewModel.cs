@@ -44,6 +44,15 @@ public sealed class CharacterRowViewModel(RosterEntry entry, int position) : Obs
     /// <summary>Titre brut de la fenêtre, affiché pour aider à régler le motif d'extraction des noms.</summary>
     public string WindowTitle => entry.Window?.Title ?? "—";
 
+    /// <summary>
+    /// Classe Win32 de la fenêtre, montrée en infobulle sur son titre.
+    ///
+    /// C'est le seul moyen de savoir quoi mettre dans « Classe de fenêtre » des Réglages, et
+    /// de vérifier si une ligne indésirable est bien une fenêtre du jeu ou une autre fenêtre
+    /// du même processus — un lanceur, une mise à jour — qu'un filtre écarterait.
+    /// </summary>
+    public string WindowClass => entry.Window?.ClassName ?? "—";
+
     public bool IsPresent => entry.IsPresent;
 
     public string StatusLabel => entry switch
