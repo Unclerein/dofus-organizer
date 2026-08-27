@@ -399,9 +399,8 @@
     </Style>
 
     <!--
-      La sélection et le survol se peignent sur la ligne, jamais sur la cellule :
-      le gabarit de cellule ci-dessous garde un fond transparent pour les laisser
-      transparaître, sans quoi la cellule recouvrirait la ligne.
+      La ligne peint le survol et la sélection ; la cellule reste transparente pour
+      les laisser transparaître, sans quoi elle recouvrirait la ligne.
     -->
     <Style TargetType="DataGridRow">
       <Setter Property="Foreground" Value="{StaticResource Ink}" />
@@ -430,9 +429,21 @@
           </ControlTemplate>
         </Setter.Value>
       </Setter>
+      <!--
+        La cellule reprend les mêmes couleurs que la ligne, à dessein. DataGrid ne lit
+        pas le fond d'une ligne, il le contraint : la valeur passe par une coercition qui
+        arbitre entre RowBackground et AlternatingRowBackground, et rien ne garantit qu'un
+        déclencheur de style en sorte vainqueur. La ligne peint donc la bande entière,
+        cellules comprises, et la cellule repeint par-dessus ce qu'elle couvre. Si la
+        coercition l'emporte sur la ligne, la sélection reste visible ; si elle ne
+        l'emporte pas, les deux couches sont de la même couleur et rien ne se voit.
+      -->
       <Style.Triggers>
-        <!-- La ligne porte déjà la couleur ; la cellule ne fait que suivre l'encre. -->
+        <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+          <Setter Property="Background" Value="{StaticResource GoldSoft}" />
+        </DataTrigger>
         <Trigger Property="IsSelected" Value="True">
+          <Setter Property="Background" Value="{StaticResource GoldBright}" />
           <Setter Property="Foreground" Value="{StaticResource Ink}" />
         </Trigger>
       </Style.Triggers>

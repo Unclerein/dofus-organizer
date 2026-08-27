@@ -217,3 +217,11 @@ compte. Le mode retenu ici est le premier, à vous de le garder de ce côté.
 Cette séparation est délibérée : tout ce qui peut se tromper silencieusement — le calcul
 des coordonnées de clic, l'ordre de parcours des personnages, la sérialisation des macros —
 vit dans `Core` derrière des interfaces, et se vérifie sans Windows ni client Dofus.
+
+Reste l'interface, que les tests ne couvrent pas. `DofusOrganizer.exe --selftest` construit
+la fenêtre principale, parcourt les commandes d'édition puis calcule la mise en page de
+chaque onglet, et rend un code de sortie. La mise en page compte autant que le reste :
+charger le XAML ne fait que le lire, alors qu'une ressource mal typée dans un
+`ControlTemplate` ne se révèle qu'à l'application du gabarit, c'est-à-dire à la première
+mesure — et le contenu d'un onglet jamais sélectionné n'est jamais construit. La CI lance
+ce contrôle sur `windows-latest` après la compilation.

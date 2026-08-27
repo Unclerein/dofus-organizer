@@ -443,7 +443,8 @@
             </TextBlock>
 
             <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-              <Button Content="Enregistrer les réglages" Command="{Binding SaveCommand}" MinWidth="170" />
+              <Button Content="Enregistrer les réglages" Command="{Binding SaveCommand}" MinWidth="170"
+                      Style="{StaticResource GoldButton}" />
               <Button Content="Rafraîchir la détection" Command="{Binding RefreshCommand}" MinWidth="170" />
             </StackPanel>
           </StackPanel>
