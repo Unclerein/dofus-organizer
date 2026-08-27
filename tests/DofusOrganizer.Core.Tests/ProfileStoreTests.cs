@@ -40,6 +40,7 @@ public class ProfileStoreTests : IDisposable
                                 new MouseClickStep { Fx = 0.25, Fy = 0.9, Button = MouseButton.Right, Clicks = 2 },
                                 new KeyStep { VirtualKey = VirtualKeys.F3, Action = KeyAction.Down },
                                 new DelayStep { Milliseconds = 250 },
+                                new DistributeQuantityStep { Divisor = 3 },
                             },
                         },
                         new FocusStep { Target = FocusTarget.Slot, SlotIndex = 2 },
@@ -68,6 +69,7 @@ public class ProfileStoreTests : IDisposable
         Assert.Equal(0.25, click.Fx, 6);
         Assert.Equal(KeyAction.Down, Assert.IsType<KeyStep>(loop.Steps[1]).Action);
         Assert.Equal(250, Assert.IsType<DelayStep>(loop.Steps[2]).Milliseconds);
+        Assert.Equal(3, Assert.IsType<DistributeQuantityStep>(loop.Steps[3]).Divisor);
         Assert.Equal(2, Assert.IsType<FocusStep>(macro.Steps[1]).SlotIndex);
         Assert.IsType<MouseMoveStep>(macro.Steps[2]);
     }

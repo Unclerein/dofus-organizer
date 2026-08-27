@@ -1,6 +1,7 @@
 using System.Windows.Threading;
 using DofusOrganizer.Core.Abstractions;
 using DofusOrganizer.Core.Config;
+using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Macros;
 using DofusOrganizer.Core.Models;
 using DofusOrganizer.Core.Organizer;
@@ -17,6 +18,7 @@ public sealed class OrganizerService : IDisposable, ILogSink
     private readonly ProfileStore _store;
     private readonly Win32WindowManager _windows = new();
     private readonly SendInputSender _input = new();
+    private readonly WindowsClipboard _clipboard = new();
     private readonly MacroRunner _runner;
     private readonly HotkeyDispatcher _dispatcher;
     private readonly DispatcherTimer _refreshTimer;
@@ -31,11 +33,12 @@ public sealed class OrganizerService : IDisposable, ILogSink
         _store = new ProfileStore(profilePath ?? ProfileStore.DefaultPath);
         Profile = _store.Load();
 
-        _runner = new MacroRunner(_windows, _input, new SystemClock(), this);
+        _runner = new MacroRunner(_windows, _input, new SystemClock(), this, _clipboard);
         _dispatcher = new HotkeyDispatcher(_windows.GetForegroundWindow, IsGameWindow);
         _dispatcher.ActionTriggered += OnHotkey;
 
         Recorder = new MacroRecorder(_windows, SlotIndexOf, _dispatcher.IsRecordingControl);
+        Designator = new PointDesignator(_windows, SlotIndexOf);
 
         // Une seconde suffit : ouvrir un client prend plus de temps que ça, et un
         // intervalle plus court ferait tourner une énumération de fenêtres pour rien.
@@ -71,6 +74,8 @@ public sealed class OrganizerService : IDisposable, ILogSink
     public CharacterRoster Roster { get; } = new();
 
     public MacroRecorder Recorder { get; }
+
+    public PointDesignator Designator { get; }
 
     public bool IsMacroRunning => _runner.IsRunning;
 
@@ -293,9 +298,12 @@ public sealed class OrganizerService : IDisposable, ILogSink
     /// usage. Sans cela elle serait exécutée puis jetée, et il n'y aurait rien à inspecter
     /// quand le rejeu déçoit — ni les images capturées, ni l'enchaînement obtenu.
     /// </summary>
-    private Macro StoreLastTeamCapture(Macro macro)
+    private Macro StoreLastTeamCapture(Macro macro) => StoreNamedMacro(macro);
+
+    /// <inheritdoc cref="StoreLastTeamCapture"/>
+    private Macro StoreNamedMacro(Macro macro)
     {
-        var existing = Profile.Macros.FirstOrDefault(m => m.Name == TeamReplay.MacroName);
+        var existing = Profile.Macros.FirstOrDefault(m => m.Name == macro.Name);
         if (existing is not null)
         {
             // Le raccourci éventuellement assigné à cette macro est conservé.
@@ -311,6 +319,61 @@ public sealed class OrganizerService : IDisposable, ILogSink
         Save();
         _uiDispatcher.BeginInvoke(() => MacrosChanged?.Invoke());
         return macro;
+    }
+
+    /// <summary>
+    /// Ouvre le mode « désigner » : les clics gauches faits dans un client recueillent un point
+    /// et n'atteignent pas le jeu.
+    ///
+    /// Les raccourcis sont endormis comme pendant une capture, et pour la même raison : la
+    /// touche qui a servi à ouvrir ce mode ne doit pas déclencher autre chose. Le réveil passe
+    /// par un <c>finally</c> — s'il était sauté, plus rien ne répondrait, ce qui ressemble à
+    /// s'y méprendre à un hook décroché.
+    /// </summary>
+    public void StartDesignating()
+    {
+        if (Designator.IsDesignating || Recorder.IsRecording) return;
+
+        _dispatcher.Enabled = false;
+        try
+        {
+            Designator.Start();
+        }
+        catch
+        {
+            _dispatcher.Enabled = true;
+            throw;
+        }
+
+        Log("Désignation : cliquez le coffre, la case d'arrivée, puis les items.");
+    }
+
+    public IReadOnlyList<NormalizedPoint> StopDesignating()
+    {
+        if (!Designator.IsDesignating) return [];
+
+        try
+        {
+            return Designator.Stop();
+        }
+        finally
+        {
+            _dispatcher.Enabled = true;
+        }
+    }
+
+    /// <summary>
+    /// Construit la macro de répartition à partir des points désignés et la range dans le
+    /// profil, sous un nom réservé remplacé à chaque usage — comme le rejeu sur l'équipe.
+    ///
+    /// Les deux premiers points ne sont pas des items : le coffre, puis la case d'arrivée.
+    /// </summary>
+    public Macro? BuildChestDistribution(IReadOnlyList<NormalizedPoint> points)
+    {
+        if (points.Count < 3) return null;
+
+        var macro = ChestDistribution.BuildMacro(points[0], points[1], [.. points.Skip(2)]);
+        return StoreNamedMacro(macro);
     }
 
     private void Notify(bool recording)
@@ -444,14 +507,29 @@ public sealed class OrganizerService : IDisposable, ILogSink
 
         var token = _macroCancellation.Token;
 
-        // Hors du fil d'interface : le moteur y enchaîne des activations de fenêtre, des captures
-        // d'écran et des recherches d'image, toutes synchrones et coûteuses. Le laisser là
-        // bloquerait les rappels des hooks, dont ce fil est le seul serviteur.
-        var result = await Task
-            .Run(() => _runner.RunAsync(macro, Roster, Profile.Settings, token, actionDelayOverride), token)
-            .ConfigureAwait(false);
+        // Le presse-papiers appartient à l'utilisateur. Une macro de répartition s'en sert pour
+        // lire la quantité proposée par le jeu et pour y poser la sienne : sans cette mise de
+        // côté, ce qu'il avait copié avant de lancer la macro serait perdu, remplacé par un
+        // nombre d'items.
+        string? borrowed = _clipboard.GetText();
 
-        if (result.Outcome == MacroOutcome.Failed) Log($"Échec : {result.Message}");
+        try
+        {
+            // Hors du fil d'interface : le moteur y enchaîne des activations de fenêtre et des
+            // attentes, toutes synchrones. Le laisser là bloquerait les rappels des hooks, dont
+            // ce fil est le seul serviteur.
+            var result = await Task
+                .Run(() => _runner.RunAsync(macro, Roster, Profile.Settings, token, actionDelayOverride), token)
+                .ConfigureAwait(false);
+
+            if (result.Outcome == MacroOutcome.Failed) Log($"Échec : {result.Message}");
+        }
+        finally
+        {
+            // Y compris après une annulation : c'est justement quand la macro tourne mal que
+            // l'utilisateur retourne à ce qu'il faisait avant.
+            if (borrowed is not null) _clipboard.SetText(borrowed);
+        }
     }
 
     public void CancelMacro()
@@ -492,5 +570,6 @@ public sealed class OrganizerService : IDisposable, ILogSink
         _macroCancellation?.Dispose();
         _dispatcher.Dispose();
         Recorder.Dispose();
+        Designator.Dispose();
     }
 }

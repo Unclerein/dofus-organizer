@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using DofusOrganizer.App.Services;
 using DofusOrganizer.Core.Config;
+using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Models;
 
 namespace DofusOrganizer.App.ViewModels;
@@ -38,6 +39,17 @@ public sealed class MainViewModel : ObservableObject
         _service.Recorder.StepRecorded += step =>
             Status = $"Capturé ({_service.Recorder.Steps.Count}) : {step.Description}";
 
+        // Même garantie que ci-dessus : le hook est posé depuis le fil d'interface, c'est donc
+        // lui qui sert les rappels. La liste se remplit sous les yeux, ce qui est le seul moyen
+        // de voir qu'un clic a bien été pris — puisque le jeu, lui, ne réagit pas.
+        _service.Designator.PointDesignated += point =>
+        {
+            _chestPoints.Add(point);
+            ChestPoints.Add(LabelFor(_chestPoints.Count - 1, point));
+            Status = $"Désigné : {ChestPoints[^1]}";
+            RefreshCommands();
+        };
+
         // Les commandes sont créées avant toute affectation de sélection : les
         // accesseurs de SelectedMacro et SelectedCharacter appellent RefreshCommands(),
         // qui les parcourt. Les remplir plus tard laisserait des références nulles.
@@ -50,6 +62,11 @@ public sealed class MainViewModel : ObservableObject
         FocusCharacterCommand = new RelayCommand(FocusCharacter, () => SelectedCharacter?.IsPresent == true);
         ForgetCharacterCommand = new RelayCommand(ForgetCharacter, () => SelectedCharacter?.IsPresent == false);
         ForgetAbsentCharactersCommand = new RelayCommand(ForgetAbsentCharacters);
+        ToggleDesignationCommand = new RelayCommand(ToggleDesignation);
+        ClearChestPointsCommand = new RelayCommand(ClearChestPoints, () => _chestPoints.Count > 0);
+        BuildChestMacroCommand = new RelayCommand(
+            BuildChestMacro, () => !_service.Designator.IsDesignating && _chestPoints.Count >= 3);
+
         RestoreDefaultDelaysCommand = new RelayCommand(RestoreDefaultDelays);
         RestoreDefaultDetectionCommand = new RelayCommand(RestoreDefaultDetection);
 
@@ -173,6 +190,9 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand FocusCharacterCommand { get; }
     public RelayCommand ForgetCharacterCommand { get; }
     public RelayCommand ForgetAbsentCharactersCommand { get; }
+    public RelayCommand ToggleDesignationCommand { get; }
+    public RelayCommand ClearChestPointsCommand { get; }
+    public RelayCommand BuildChestMacroCommand { get; }
     public RelayCommand RestoreDefaultDelaysCommand { get; }
     public RelayCommand RestoreDefaultDetectionCommand { get; }
     public RelayCommand AddMacroCommand { get; }
@@ -325,6 +345,71 @@ public sealed class MainViewModel : ObservableObject
     /// sont rangés dans le même objet que les temporisations, et les emporter au passage ne
     /// se verrait qu'en jeu, longtemps après le clic.
     /// </summary>
+    // ---------------------------------------------------------------- Répartition du coffre
+
+    private readonly List<NormalizedPoint> _chestPoints = [];
+
+    /// <summary>Les points désignés, sous une forme lisible : leur rôle, puis leur position.</summary>
+    public ObservableCollection<string> ChestPoints { get; } = [];
+
+    public bool IsDesignating => _service.Designator.IsDesignating;
+
+    public string DesignationLabel => IsDesignating ? "Terminer la désignation" : "Désigner les points";
+
+    /// <summary>
+    /// Les deux premiers points ne sont pas des items : le coffre puis la case d'arrivée. Les
+    /// nommer plutôt que de les numéroter évite la seule erreur qui ne se voit qu'en jeu —
+    /// avoir désigné les items sans avoir désigné le coffre d'abord.
+    /// </summary>
+    private static string LabelFor(int index, NormalizedPoint point)
+    {
+        string role = index switch
+        {
+            0 => "Coffre",
+            1 => "Case d'arrivée",
+            _ => $"Item {index - 1}",
+        };
+
+        return $"{index + 1}. {role} — {point.Fx * 100:0.#} % / {point.Fy * 100:0.#} %";
+    }
+
+    private void ToggleDesignation()
+    {
+        if (_service.Designator.IsDesignating)
+        {
+            _service.StopDesignating();
+            Status = _chestPoints.Count < 3
+                ? "Il faut au moins le coffre, la case d'arrivée et un item."
+                : $"{_chestPoints.Count - 2} item(s) désigné(s).";
+        }
+        else
+        {
+            ClearChestPoints();
+            _service.StartDesignating();
+        }
+
+        Raise(nameof(IsDesignating));
+        Raise(nameof(DesignationLabel));
+        RefreshCommands();
+    }
+
+    private void ClearChestPoints()
+    {
+        _chestPoints.Clear();
+        ChestPoints.Clear();
+        RefreshCommands();
+    }
+
+    private void BuildChestMacro()
+    {
+        var macro = _service.BuildChestDistribution(_chestPoints);
+        if (macro is null) return;
+
+        SyncMacros();
+        SelectedMacro = Macros.FirstOrDefault(m => ReferenceEquals(m.Macro, macro));
+        Status = $"« {macro.Name} » construite. Assignez-lui une touche, et surveillez le premier passage.";
+    }
+
     private void RestoreDefaultDelays()
     {
         SettingsReset.RestoreDelays(Profile.Settings);
@@ -433,6 +518,7 @@ public sealed class MainViewModel : ObservableObject
             StepKind.Attente => new DelayStep(),
             StepKind.Molette => new ScrollStep(),
             StepKind.Focus => new FocusStep(),
+            StepKind.Repartition => new DistributeQuantityStep(),
             _ => new ForEachCharacterStep(),
         };
         SelectedMacro?.Add(step);
@@ -599,4 +685,4 @@ public sealed class MainViewModel : ObservableObject
     }
 }
 
-public enum StepKind { Clic, Glisser, Deplacement, Touche, Attente, Molette, Focus, PourChaquePersonnage }
+public enum StepKind { Clic, Glisser, Deplacement, Touche, Attente, Molette, Focus, PourChaquePersonnage, Repartition }

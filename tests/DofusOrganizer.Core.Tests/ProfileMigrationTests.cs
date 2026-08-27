@@ -92,12 +92,14 @@ public class ProfileMigrationTests : IDisposable
         string json = """
         { "Macros": [ { "Steps": [
           { "type": "drag", "Fx": 0.1, "Fy": 0.1, "ToFx": 0.9, "ToFy": 0.9 },
-          { "type": "delay", "Milliseconds": 250 }
+          { "type": "delay", "Milliseconds": 250 },
+          { "type": "distribute", "Divisor": 0 }
         ] } ] }
         """;
 
         Assert.Contains("\"drag\"", ProfileMigration.DropUnknownSteps(json));
         Assert.Contains("\"delay\"", ProfileMigration.DropUnknownSteps(json));
+        Assert.Contains("\"distribute\"", ProfileMigration.DropUnknownSteps(json));
     }
 
     [Fact]

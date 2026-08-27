@@ -47,6 +47,7 @@ public static class Choices
         new(StepKind.Molette, "Molette"),
         new(StepKind.Focus, "Changer de fenêtre"),
         new(StepKind.PourChaquePersonnage, "Pour chaque personnage"),
+        new(StepKind.Repartition, "Répartir la quantité"),
     ];
 
     public static IReadOnlyList<Choice<ScrollDirection>> ScrollDirections { get; } =

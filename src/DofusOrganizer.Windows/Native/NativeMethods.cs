@@ -259,4 +259,43 @@ internal static class NativeMethods
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, EntryPoint = "QueryFullProcessImageNameW")]
     internal static extern bool QueryFullProcessImageName(nint process, uint flags, StringBuilder name, ref int size);
 
+    // ---------------------------------------------------------------- Presse-papiers
+    //
+    // Le presse-papiers passe par les appels bruts plutôt que par celui de WPF : ce dernier
+    // exige un fil en appartement cloisonné (STA), et les macros tournent délibérément hors du
+    // fil d'interface — c'est ce qui empêche une macro longue de figer la fenêtre et, plus
+    // grave, de faire expirer les hooks de bas niveau.
+
+    internal const uint CF_UNICODETEXT = 13;
+    internal const uint GMEM_MOVEABLE = 0x0002;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern bool OpenClipboard(nint owner);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern bool CloseClipboard();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern bool EmptyClipboard();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern nint GetClipboardData(uint format);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern nint SetClipboardData(uint format, nint data);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern nint GlobalAlloc(uint flags, nuint bytes);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern nint GlobalFree(nint handle);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern nint GlobalLock(nint handle);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern bool GlobalUnlock(nint handle);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern nuint GlobalSize(nint handle);
 }

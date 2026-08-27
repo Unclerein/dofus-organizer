@@ -30,6 +30,7 @@ public enum FocusTarget
 [JsonDerivedType(typeof(DelayStep), "delay")]
 [JsonDerivedType(typeof(ScrollStep), "scroll")]
 [JsonDerivedType(typeof(MouseDragStep), "drag")]
+[JsonDerivedType(typeof(DistributeQuantityStep), "distribute")]
 public abstract class MacroStep : NotifyBase
 {
     /// <summary>Libellé affiché dans la liste d'étapes de l'éditeur.</summary>
@@ -279,6 +280,43 @@ public sealed class DelayStep : MacroStep
     }
 
     public override string Description => $"Attendre {Milliseconds} ms";
+}
+
+/// <summary>
+/// Lit la quantité que le jeu propose dans une boîte de saisie, la divise, et pose le résultat
+/// à sa place.
+///
+/// C'est la seule étape qui lit quelque chose : toutes les autres injectent à l'aveugle. Elle
+/// passe par le presse-papiers, seul canal par lequel un nombre affiché par le jeu peut
+/// revenir jusqu'ici — Ctrl+C pour lire, Ctrl+V pour écrire.
+///
+/// Coller plutôt que taper les chiffres n'est pas un raccourci de paresse. Les codes virtuels
+/// des chiffres désignent une touche et non un caractère : sur un clavier AZERTY, la rangée du
+/// haut donne « &amp; » là où un clavier US donne « 1 ». Le presse-papiers ignore la disposition,
+/// et c'est de toute façon le canal dont l'étape dépend déjà pour lire.
+/// </summary>
+public sealed class DistributeQuantityStep : MacroStep
+{
+    private int _divisor;
+
+    /// <summary>
+    /// Par combien diviser la quantité lue. Zéro veut dire « par le nombre de personnages qu'il
+    /// reste à servir dans la boucle, celui du tour compris ».
+    ///
+    /// Ce défaut vaut mieux qu'une part figée calculée au premier personnage. Cent items sur
+    /// quatre : le premier prend 100/4, le deuxième relit 75 et prend 75/3, et ainsi de suite —
+    /// chacun repart avec vingt-cinq. Et quand la division ne tombe pas juste, dix items
+    /// donnent 2, 2, 3, 3 au lieu de 2, 2, 2, 2 avec deux items abandonnés au coffre.
+    /// </summary>
+    public int Divisor
+    {
+        get => _divisor;
+        set { if (Set(ref _divisor, Math.Max(0, value))) RaiseDescription(); }
+    }
+
+    public override string Description => Divisor > 0
+        ? $"Répartir la quantité proposée (diviser par {Divisor})"
+        : "Répartir la quantité proposée (par personnage restant)";
 }
 
 public enum ScrollDirection { Up, Down }

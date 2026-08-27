@@ -18,6 +18,12 @@ public static class VirtualKeys
     public const int Pause = 0x13;
     public const int Capital = 0x14;
     public const int Escape = 0x1B;
+
+    // Les trois lettres des raccourcis universels. Nommées parce que le moteur les envoie
+    // lui-même, et qu'un 0x43 nu au milieu d'une méthode ne dit rien à personne.
+    public const int A = 0x41;
+    public const int C = 0x43;
+    public const int V = 0x56;
     public const int Space = 0x20;
     public const int Prior = 0x21;     // Page précédente
     public const int Next = 0x22;      // Page suivante

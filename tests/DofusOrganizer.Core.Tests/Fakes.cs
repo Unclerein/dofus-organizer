@@ -101,6 +101,48 @@ public sealed class FakeInputSender(List<RecordedAction> actions) : IInputSender
     }
 }
 
+/// <summary>
+/// Presse-papiers de laboratoire.
+///
+/// Il note ce qu'on lui demande, ce qui permet de vérifier la précaution qui compte : que le
+/// moteur le vide avant de copier. Sans ce vidage, une copie ratée laisserait le contenu
+/// précédent en place et la macro le prendrait pour la réponse du jeu.
+/// </summary>
+public sealed class FakeClipboard : IClipboard
+{
+    private string? _text;
+
+    /// <summary>Ce que le jeu « copiera » au prochain Ctrl+C. Null pour simuler une copie qui n'a pas lieu.</summary>
+    public string? AnswerOnCopy { get; set; }
+
+    /// <summary>Réponses successives, pour un stock qui diminue d'un personnage à l'autre.</summary>
+    public Queue<string?> Answers { get; } = [];
+
+    public List<string> Written { get; } = [];
+    public int Clears { get; private set; }
+
+    public FakeClipboard(string? initial = null) => _text = initial;
+
+    public void Clear()
+    {
+        Clears++;
+        _text = null;
+
+        // Le jeu répond au Ctrl+C que le moteur envoie juste après. Le simuler ici plutôt qu'à
+        // la frappe garde le faux indépendant de l'ordre exact des touches envoyées.
+        string? answer = Answers.Count > 0 ? Answers.Dequeue() : AnswerOnCopy;
+        if (answer is not null) _text = answer;
+    }
+
+    public string? GetText() => _text;
+
+    public void SetText(string text)
+    {
+        _text = text;
+        Written.Add(text);
+    }
+}
+
 /// <summary>Horloge qui note les attentes sans jamais dormir, pour que les tests restent instantanés.</summary>
 public sealed class FakeClock(List<RecordedAction> actions) : IClock
 {
@@ -140,15 +182,22 @@ public sealed class CancellingClock(CancellationTokenSource source, int cancelAf
 public static class MacroHarness
 {
     /// <summary>Un personnage, une fenêtre, et aucune temporisation autre que celles qu'on mesure.</summary>
-    public static (FakeWindowManager Windows, CharacterRoster Roster, Profile Profile) BuildSolo()
+    public static (FakeWindowManager Windows, CharacterRoster Roster, Profile Profile) BuildSolo() => BuildTeam("Meneur");
+
+    /// <summary>Une équipe nommée, chaque personnage sur sa fenêtre, sans aucune temporisation.</summary>
+    public static (FakeWindowManager Windows, CharacterRoster Roster, Profile Profile) BuildTeam(params string[] names)
     {
         var windows = new FakeWindowManager();
-        windows.AddWindow(1, "Meneur", new ClientBounds(new ScreenPoint(0, 0), 800, 600));
+        for (int i = 0; i < names.Length; i++)
+        {
+            windows.AddWindow(i + 1, names[i], new ClientBounds(new ScreenPoint(0, 0), 800, 600));
+        }
         windows.Foreground = 1;
 
         var profile = new Profile();
         profile.Settings.FocusSettleDelayMs = 0;
         profile.Settings.ActionDelayMs = 0;
+        profile.Settings.TypingDelayMs = 0;
 
         var roster = new CharacterRoster();
         roster.Sync(windows.Windows, profile.Characters);
@@ -165,10 +214,11 @@ public static class MacroHarness
     /// <summary>Exécute la macro et rend la suite d'actions observées, dans l'ordre.</summary>
     public static async Task<List<RecordedAction>> RunAsync(
         Macro macro, FakeWindowManager windows, CharacterRoster roster, Profile profile,
-        int? actionDelayOverride = null)
+        int? actionDelayOverride = null, IClipboard? clipboard = null)
     {
         var actions = windows.Actions;
-        var runner = new MacroRunner(windows, new FakeInputSender(actions), new FakeClock(actions));
+        var runner = new MacroRunner(
+            windows, new FakeInputSender(actions), new FakeClock(actions), log: null, clipboard);
 
         var result = await runner.RunAsync(
             macro, roster, profile.Settings, CancellationToken.None, actionDelayOverride);

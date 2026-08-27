@@ -150,6 +150,56 @@ clients, c'est douze secondes ajoutées au voyage.
 différent selon le personnage, et un même zaap ne s'y trouve alors pas au même endroit ; une
 liste de texte, elle, s'affiche identiquement partout.
 
+## Répartir le coffre sur l'équipe
+
+Le meneur achète pour toute l'équipe, dépose tout au coffre de guilde, et chaque personnage
+vient prendre sa part. L'onglet **Coffre** fabrique la macro qui fait le tour.
+
+1. Le meneur dépose tout au coffre.
+2. Amenez les quatre personnages devant le coffre. Ils doivent tous pouvoir l'ouvrir sans se
+   déplacer : la macro clique au même endroit sur chacun.
+3. **Désigner les points**, dans l'ordre : le coffre, puis la case où les items doivent
+   arriver dans votre inventaire, puis chaque item à répartir. Pendant la désignation vos clics
+   ne parviennent pas au jeu — aucune boîte de quantité ne s'ouvre. Cliquez **Terminer** dans
+   la fenêtre de l'organizer, ses propres clics passant normalement.
+4. **Construire la macro**. Elle apparaît dans l'onglet Macros, modifiable comme les autres, et
+   vous pouvez lui assigner une touche.
+
+### Ce que fait la macro, et pourquoi comme ça
+
+Elle ne connaît pas les quantités : elle les lit. Chaque item glissé ouvre la boîte de saisie
+que le jeu remplit du stock disponible ; la macro la copie, divise, et colle le résultat.
+
+**Elle divise par le nombre de personnages qu'il reste à servir**, et non par l'effectif de
+départ. Cent items sur quatre : le premier prend 100/4, le deuxième relit 75 et prend 75/3, et
+ainsi de suite — chacun repart avec vingt-cinq. Quand la division ne tombe pas juste, dix items
+donnent 2, 2, 3, 3 : dix distribués, rien d'oublié au coffre, là où un quart figé aurait donné
+2, 2, 2, 2 et laissé deux items derrière.
+
+**Elle traite les items du dernier désigné au premier.** Quand une pile se vide, les items qui
+la suivaient remontent d'une case et les points désignés après elle tombent à côté. En partant
+de la fin, ce qui disparaît est toujours derrière ce qu'il reste à traiter. Désignez donc vos
+items dans l'ordre du coffre, la macro s'occupe de les prendre à l'envers.
+
+**Elle colle la quantité au lieu de la taper.** Les codes des touches de chiffres désignent une
+touche et non un caractère : sur un clavier AZERTY, la rangée du haut donne « & » là où un
+clavier US donne « 1 ». Le presse-papiers ignore la disposition.
+
+**Elle s'arrête plutôt que de deviner.** Si la boîte de saisie ne s'ouvre pas, la copie ne
+donne rien — et le presse-papiers garderait le nombre du personnage précédent, que la macro
+prendrait pour la réponse du jeu. Il est donc vidé avant chaque copie : ce qui est lu ensuite
+est nécessairement apparu depuis, ou n'existe pas. Rien de lisible, et la macro s'arrête en le
+disant. Ce que vous aviez copié avant de la lancer vous est rendu à la fin.
+
+### Avant la première vraie répartition
+
+Ce que la macro donne, le jeu ne le rend pas. Faites un premier essai avec **un seul item de
+peu de valeur**, sur deux personnages, en regardant chaque quantité tapée. L'arrêt d'urgence
+reste actif pendant tout le rejeu.
+
+Si les glissers partent dans le vide, c'est que le coffre n'était pas encore ouvert : montez
+l'attente qui suit le clic du coffre, visible comme une étape ordinaire dans l'éditeur.
+
 ## Aligner un panneau identiquement sur tous les personnages
 
 La fenêtre listant les zaaps se déplace au clic gauche maintenu. Pour qu'elle soit au même
@@ -249,6 +299,11 @@ compte. Le mode retenu ici est le premier, à vous de le garder de ce côté.
 | `src/DofusOrganizer.App` | Interface WPF. |
 | `tests/DofusOrganizer.Core.Tests` | Tests de la logique métier, exécutés en CI sur Linux. |
 | `assets/` + `tools/build-icon.py` | Illustration de l'icône et fabrication du `.ico` posé sur l'exécutable. |
+
+La répartition du coffre est la seule chose que l'outil fasse qui soit irréversible en jeu.
+Ses deux décisions — comment lire une quantité, par combien la diviser — vivent donc dans
+`Core` sous forme de fonctions pures, et les refus comptent autant que les réussites : un
+presse-papiers resté vide arrête la macro au lieu de taper un nombre venu d'ailleurs.
 
 Cette séparation est délibérée : tout ce qui peut se tromper silencieusement — le calcul
 des coordonnées de clic, l'ordre de parcours des personnages, la sérialisation des macros —

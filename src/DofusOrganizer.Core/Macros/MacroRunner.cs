@@ -14,8 +14,21 @@ public sealed record MacroResult(MacroOutcome Outcome, int StepsExecuted, string
 /// Une seule macro tourne à la fois — deux séquences de clics entrelacées produiraient
 /// des actions envoyées à la mauvaise fenêtre.
 /// </summary>
-public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClock clock, ILogSink? log = null)
+public sealed class MacroRunner(
+    IWindowManager windows, IInputSender input, IClock clock, ILogSink? log = null, IClipboard? clipboard = null)
 {
+    /// <summary>
+    /// Combien de temps laisser au jeu pour répondre à un Ctrl+C avant de renoncer.
+    ///
+    /// Attendre une durée fixe puis lire une fois marcherait la plupart du temps et
+    /// échouerait le reste : un client qui rame met plus longtemps, un client au repos répond
+    /// aussitôt. On interroge donc jusqu'à ce que quelque chose apparaisse, et ce délai n'est
+    /// pas un temps d'attente mais un abandon — au bout, la copie n'a pas eu lieu.
+    /// </summary>
+    private const int ClipboardTimeoutMs = 1500;
+
+    private const int ClipboardPollMs = 40;
+
     private readonly ILogSink _log = log ?? NullLogSink.Instance;
     private int _running;
 
@@ -135,6 +148,11 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
             case DelayStep delay:
                 await clock.DelayAsync(delay.Milliseconds, ct).ConfigureAwait(false);
                 break;
+
+            case DistributeQuantityStep distribute:
+                await DistributeAsync(distribute, settings, state, ct).ConfigureAwait(false);
+                await clock.DelayAsync(pause, ct).ConfigureAwait(false);
+                break;
         }
     }
 
@@ -167,27 +185,124 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
         await clock.DelayAsync(pause, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Lit la quantité proposée par le jeu, la divise, et pose le résultat à sa place.
+    ///
+    /// Tout le soin est dans ce qui précède la lecture. Si la boîte de saisie ne s'est pas
+    /// ouverte, le Ctrl+C ne copie rien — et le presse-papiers garderait son contenu précédent,
+    /// que l'étape prendrait pour la réponse du jeu. Elle taperait alors un nombre venu
+    /// d'ailleurs, sur des items qui changent de mains sans retour possible. D'où le vidage
+    /// préalable : ce qui est lu ensuite est nécessairement apparu depuis, ou n'existe pas.
+    ///
+    /// Rien de lisible, et la macro s'arrête. Deviner coûterait des items ; renoncer ne coûte
+    /// qu'un message.
+    /// </summary>
+    private async Task DistributeAsync(
+        DistributeQuantityStep step, AppSettings settings, RunState state, CancellationToken ct)
+    {
+        if (clipboard is null)
+        {
+            throw new InvalidOperationException(
+                "Répartir une quantité demande le presse-papiers, dont ce moteur ne dispose pas.");
+        }
+
+        int divisor = step.Divisor > 0 ? step.Divisor : state.RemainingTargets;
+        if (divisor <= 0)
+        {
+            throw new InvalidOperationException(
+                "« Répartir la quantité » divise par le nombre de personnages restants : "
+                + "l'étape doit vivre dans une boucle « pour chaque personnage », ou porter un diviseur.");
+        }
+
+        clipboard.Clear();
+        input.SendKey(VirtualKeys.C, KeyModifiers.Control, KeyAction.Press, settings.UseScanCodes);
+
+        string? copied = await ReadClipboardAsync(ct).ConfigureAwait(false);
+        if (!QuantitySplit.TryParse(copied, out int stock))
+        {
+            throw new InvalidOperationException(copied is null
+                ? "Aucune quantité copiée : la boîte de saisie ne s'est pas ouverte, ou le jeu ignore Ctrl+C."
+                : $"« {copied} » n'est pas une quantité.");
+        }
+
+        int share = QuantitySplit.Share(stock, divisor);
+        if (share <= 0)
+        {
+            // Taper zéro ferait n'importe quoi selon le jeu. On referme et on passe : il reste
+            // moins d'items que de personnages à servir, ceux d'après se les partageront.
+            _log.Log($"{stock} pour {divisor} personnage(s) : part nulle, item sauté.");
+            input.SendKey(VirtualKeys.Escape, KeyModifiers.None, KeyAction.Press, settings.UseScanCodes);
+            return;
+        }
+
+        _log.Log($"{stock} à répartir sur {divisor} : {share}.");
+        clipboard.SetText(share.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+        // Sélectionner avant de coller : le champ arrive avec son contenu déjà sélectionné,
+        // mais un clic malencontreux aurait suffi à défaire cette sélection, et la quantité
+        // viendrait alors s'ajouter à celle qui s'y trouvait.
+        await SendChordAsync(VirtualKeys.A, settings, ct).ConfigureAwait(false);
+        await SendChordAsync(VirtualKeys.V, settings, ct).ConfigureAwait(false);
+        input.SendKey(VirtualKeys.Return, KeyModifiers.None, KeyAction.Press, settings.UseScanCodes);
+    }
+
+    /// <summary>Un raccourci Ctrl+touche, suivi de la cadence de saisie — pas du délai d'action.</summary>
+    private async Task SendChordAsync(int virtualKey, AppSettings settings, CancellationToken ct)
+    {
+        input.SendKey(virtualKey, KeyModifiers.Control, KeyAction.Press, settings.UseScanCodes);
+        await clock.DelayAsync(settings.TypingDelayMs, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Interroge le presse-papiers jusqu'à ce qu'il porte quelque chose, ou renonce.</summary>
+    private async Task<string?> ReadClipboardAsync(CancellationToken ct)
+    {
+        for (int waited = 0; waited < ClipboardTimeoutMs; waited += ClipboardPollMs)
+        {
+            await clock.DelayAsync(ClipboardPollMs, ct).ConfigureAwait(false);
+
+            string? text = clipboard!.GetText();
+            if (!string.IsNullOrWhiteSpace(text)) return text;
+        }
+
+        return null;
+    }
+
     private async Task RunLoopAsync(ForEachCharacterStep loop, CharacterRoster roster, AppSettings settings, RunState state, CancellationToken ct)
     {
         // La liste est figée à l'entrée de la boucle : un client fermé en cours de route
         // ne doit pas décaler les personnages restants.
         var targets = roster.ActiveEntries;
-        foreach (var entry in targets)
+        try
         {
-            ct.ThrowIfCancellationRequested();
-            if (entry.Window is null) continue;
-            if (loop.SkipCurrentWindow && entry.Window.Handle == state.InitialWindow) continue;
-
-            _log.Log($"→ {entry.Slot.DisplayName}");
-            await FocusAsync(entry, settings, state, ct).ConfigureAwait(false);
-            if (state.CurrentTarget != entry.Window.Handle)
+            for (int i = 0; i < targets.Count; i++)
             {
-                // Sans le focus, les clics partiraient sur la fenêtre précédente.
-                _log.Log($"Impossible d'activer « {entry.Slot.DisplayName} », personnage ignoré.");
-                continue;
-            }
+                var entry = targets[i];
+                ct.ThrowIfCancellationRequested();
+                if (entry.Window is null) continue;
+                if (loop.SkipCurrentWindow && entry.Window.Handle == state.InitialWindow) continue;
 
-            await ExecuteAsync(loop.Steps, roster, settings, state, ct).ConfigureAwait(false);
+                // Ce que « Répartir la quantité » divise. Un personnage sauté juste après
+                // décale ce compte de lui-même : le suivant prendra une part plus grosse,
+                // ce qui vaut mieux que des items abandonnés au coffre.
+                state.RemainingTargets = targets.Count - i;
+
+                _log.Log($"→ {entry.Slot.DisplayName}");
+                await FocusAsync(entry, settings, state, ct).ConfigureAwait(false);
+                if (state.CurrentTarget != entry.Window.Handle)
+                {
+                    // Sans le focus, les clics partiraient sur la fenêtre précédente.
+                    _log.Log($"Impossible d'activer « {entry.Slot.DisplayName} », personnage ignoré.");
+                    continue;
+                }
+
+                await ExecuteAsync(loop.Steps, roster, settings, state, ct).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            // Hors boucle, il n'y a personne à servir : une étape de répartition qui s'y
+            // trouverait doit échouer franchement plutôt que diviser par un reste oublié.
+            state.RemainingTargets = 0;
         }
     }
 
@@ -297,5 +412,11 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
         public int ActionDelayMs { get; } = actionDelayMs;
         public nint CurrentTarget { get; set; }
         public int StepsExecuted { get; set; }
+
+        /// <summary>
+        /// Personnages qu'il reste à servir dans la boucle en cours, celui du tour compris.
+        /// Zéro hors d'une boucle.
+        /// </summary>
+        public int RemainingTargets { get; set; }
     }
 }

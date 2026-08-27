@@ -104,6 +104,11 @@ public partial class App : Application
 
         // Les rétablissements touchent à un objet lié à une douzaine de champs : c'est le
         // genre de commande dont une liaison mal écrite ne se voit qu'au clic.
+        // La répartition du coffre : la désignation ne peut pas être simulée sans souris, mais
+        // le reste du chemin — construire, effacer — se lie à une liste et à des commandes.
+        model.ClearChestPointsCommand.Execute(null);
+        model.BuildChestMacroCommand.Execute(null);
+
         model.RestoreDefaultDelaysCommand.Execute(null);
         model.RestoreDefaultDetectionCommand.Execute(null);
 
