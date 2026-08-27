@@ -107,8 +107,8 @@ public class CharacterNamingTests
         };
 
         roster.Sync([Fenetre(1, "Dofus")], slots);
-        Assert.Equal(2, slots.Count);
-        Assert.All(roster.Entries, e => Assert.False(e.IsPresent));
+        Assert.Equal(2, slots.Count);                                    // rien de persisté pour un client anonyme
+        Assert.All(roster.Entries.Where(e => !e.IsPending), e => Assert.False(e.IsPresent));
 
         roster.Sync([Fenetre(1, "Saignatore - Roublard - 3.6.10.11 - Release")], slots);
 
@@ -117,6 +117,128 @@ public class CharacterNamingTests
         Assert.Equal("Saignatore", entry.Slot.Key);
         Assert.Equal(new Hotkey(VirtualKeys.F2), entry.Slot.Hotkey);
         Assert.Equal(1, roster.Entries.ToList().IndexOf(entry));
+        Assert.DoesNotContain(roster.Entries, e => e.IsPending);         // la ligne éphémère s'est effacée
+    }
+
+    [Fact]
+    public void Un_client_a_l_ecran_de_selection_occupe_une_ligne_ephemere()
+    {
+        // On doit pouvoir basculer dessus pendant qu'on connecte les personnages, sans que
+        // le titre de passage laisse quoi que ce soit dans le profil.
+        var roster = new CharacterRoster();
+        var slots = new List<CharacterSlot>();
+
+        roster.Sync([Fenetre(1, "Dofus 3.6.10.11 - Release")], slots);
+
+        var entry = Assert.Single(roster.Entries);
+        Assert.True(entry.IsPending);
+        Assert.True(entry.IsPresent);
+        Assert.True(entry.IsSelectable);
+        Assert.Equal("Dofus 3.6.10.11 - Release", entry.Slot.Key);
+        Assert.Empty(slots);
+    }
+
+    [Fact]
+    public void Une_ligne_ephemere_ne_devient_jamais_un_doublon()
+    {
+        // Le test qui verrouille la demande : la même fenêtre traverse ses trois titres, et à
+        // aucun moment la liste n'affiche deux lignes pour un seul client.
+        var roster = new CharacterRoster();
+        var slots = new List<CharacterSlot>();
+
+        foreach (var titre in new[] { "Dofus", "Dofus 3.6.10.11 - Release", "Dofus 3.6.10.11 - Release" })
+        {
+            roster.Sync([Fenetre(1, titre)], slots);
+            Assert.Single(roster.Entries);
+        }
+
+        roster.Sync([Fenetre(1, "Saignalisation - Pandawa - 3.6.10.11 - Release")], slots);
+
+        var entry = Assert.Single(roster.Entries);
+        Assert.False(entry.IsPending);
+        Assert.Equal("Saignalisation", entry.Slot.Key);
+        Assert.Equal("Saignalisation", Assert.Single(slots).Key);
+    }
+
+    [Fact]
+    public void Une_ligne_ephemere_garde_le_meme_objet_d_un_rafraichissement_a_l_autre()
+    {
+        // La détection tourne chaque seconde. Recréer l'objet à chaque passage ferait
+        // perdre la sélection dans le tableau et rendrait la ligne inutilisable.
+        var roster = new CharacterRoster();
+        var slots = new List<CharacterSlot>();
+
+        roster.Sync([Fenetre(1, "Dofus")], slots);
+        var premier = Assert.Single(roster.Entries);
+
+        roster.Sync([Fenetre(1, "Dofus 3.6.10.11 - Release")], slots);
+        var second = Assert.Single(roster.Entries);
+
+        Assert.Same(premier, second);
+        Assert.Equal("Dofus 3.6.10.11 - Release", second.Slot.Key);   // le titre, lui, suit
+    }
+
+    [Fact]
+    public void Un_client_a_l_ecran_de_selection_reste_hors_des_boucles_de_macro()
+    {
+        // Lui rejouer une séquence de sorts n'aurait aucun sens : il n'y a pas de personnage.
+        var roster = new CharacterRoster();
+        var slots = new List<CharacterSlot>();
+
+        roster.Sync(
+            [Fenetre(1, "Saignalisation - Pandawa - 3.6.10.11 - Release"), Fenetre(2, "Dofus 3.6.10.11 - Release")],
+            slots);
+
+        Assert.Equal(2, roster.Entries.Count);
+        Assert.Equal("Saignalisation", Assert.Single(roster.ActiveEntries).Slot.Key);
+    }
+
+    [Fact]
+    public void La_touche_suivant_bascule_sur_les_clients_a_l_ecran_de_selection()
+    {
+        var roster = new CharacterRoster();
+        var slots = new List<CharacterSlot>();
+
+        roster.Sync(
+            [Fenetre(1, "Saignalisation - Pandawa - 3.6.10.11 - Release"), Fenetre(2, "Dofus 3.6.10.11 - Release")],
+            slots);
+
+        // Le raccourci global fait le tour de tous les clients…
+        Assert.Equal(2, roster.Next(1, includePending: true)!.Window!.Handle);
+        Assert.Equal(1, roster.Next(2, includePending: true)!.Window!.Handle);
+
+        // …là où une étape de macro ne vise que les personnages, et reste donc sur place.
+        Assert.Equal(1, roster.Next(1)!.Window!.Handle);
+    }
+
+    [Fact]
+    public void L_ordre_des_lignes_ephemeres_ne_suit_pas_le_premier_plan()
+    {
+        // Windows énumère les fenêtres par ordre de premier plan : s'y fier ferait sauter le
+        // cycle sous les doigts, puisque basculer sur une fenêtre la remonterait dans la liste.
+        var roster = new CharacterRoster();
+        var slots = new List<CharacterSlot>();
+
+        roster.Sync([Fenetre(1, "Dofus"), Fenetre(2, "Dofus"), Fenetre(3, "Dofus")], slots);
+        Assert.Equal([1, 2, 3], roster.Entries.Select(e => e.Window!.Handle));
+
+        roster.Sync([Fenetre(3, "Dofus"), Fenetre(1, "Dofus"), Fenetre(2, "Dofus")], slots);
+        Assert.Equal([1, 2, 3], roster.Entries.Select(e => e.Window!.Handle));
+    }
+
+    [Fact]
+    public void L_oubli_groupe_ignore_les_lignes_ephemeres()
+    {
+        var roster = new CharacterRoster();
+        var slots = new List<CharacterSlot> { new() { Key = "Parti" } };
+
+        roster.Sync([Fenetre(1, "Dofus 3.6.10.11 - Release")], slots);
+        Assert.Equal(2, roster.Entries.Count);
+
+        Assert.Equal(1, roster.ForgetAbsent(slots));
+
+        Assert.Empty(slots);
+        Assert.True(Assert.Single(roster.Entries).IsPending);
     }
 
     [Fact]

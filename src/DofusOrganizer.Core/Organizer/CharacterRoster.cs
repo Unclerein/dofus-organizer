@@ -4,14 +4,38 @@ using DofusOrganizer.Core.Models;
 namespace DofusOrganizer.Core.Organizer;
 
 /// <summary>Un emplacement de la liste, associé à la fenêtre qui l'occupe actuellement (s'il y en a une).</summary>
-public sealed class RosterEntry(CharacterSlot slot)
+public sealed class RosterEntry(CharacterSlot slot, bool pending = false)
 {
     public CharacterSlot Slot { get; } = slot;
     public GameWindow? Window { get; internal set; }
     public bool IsPresent => Window is not null;
 
-    /// <summary>Présent, coché, donc éligible au cycle et aux boucles de macro.</summary>
-    public bool IsActive => IsPresent && Slot.Enabled;
+    /// <summary>
+    /// Vrai pour un client détecté qui ne nomme encore aucun personnage — en cours de
+    /// chargement, ou resté à l'écran de sélection.
+    ///
+    /// Il occupe une ligne le temps de sa connexion, pour qu'on puisse basculer dessus,
+    /// mais rien de lui n'est conservé : ni raccourci, ni place dans l'ordre. Son titre
+    /// change deux fois avant de nommer un personnage, et persister quoi que ce soit sous
+    /// un titre de passage est précisément ce qui fabriquait des doublons.
+    /// </summary>
+    public bool IsPending { get; } = pending;
+
+    /// <summary>
+    /// Présent, coché, et nommé : éligible aux boucles de macro.
+    ///
+    /// Un client resté à l'écran de sélection en est exclu — lui rejouer une séquence de
+    /// sorts n'aurait aucun sens.
+    /// </summary>
+    public bool IsActive => IsPresent && !IsPending && Slot.Enabled;
+
+    /// <summary>
+    /// Présent et coché : éligible à la touche « personnage suivant ».
+    ///
+    /// Plus large que <see cref="IsActive"/> à dessein — basculer d'un client à l'autre
+    /// pendant qu'on les connecte est justement le moment où l'on en a le plus besoin.
+    /// </summary>
+    public bool IsSelectable => IsPresent && Slot.Enabled;
 }
 
 /// <summary>
@@ -21,52 +45,68 @@ public sealed class RosterEntry(CharacterSlot slot)
 /// </summary>
 public sealed class CharacterRoster
 {
-    private readonly List<RosterEntry> _entries = [];
+    /// <summary>Emplacements persistés, dans l'ordre choisi par l'utilisateur.</summary>
+    private readonly List<RosterEntry> _slots = [];
+
+    /// <summary>Clients encore anonymes, en fin de liste, reconstruits à chaque rafraîchissement.</summary>
+    private readonly List<RosterEntry> _pending = [];
+
+    private RosterEntry[] _entries = [];
 
     public IReadOnlyList<RosterEntry> Entries => _entries;
 
-    /// <summary>Emplacements présents et cochés, dans l'ordre de la liste.</summary>
-    public IReadOnlyList<RosterEntry> ActiveEntries => _entries.Where(e => e.IsActive).ToList();
+    /// <summary>Emplacements présents, cochés et nommés, dans l'ordre de la liste.</summary>
+    public IReadOnlyList<RosterEntry> ActiveEntries => _slots.Where(e => e.IsActive).ToList();
 
     /// <summary>
     /// Nombre de clients détectés qui ne nomment encore aucun personnage — en cours de
-    /// chargement ou restés à l'écran de connexion.
+    /// chargement ou restés à l'écran de sélection.
     ///
-    /// Compté plutôt qu'affiché : ces fenêtres n'ont pas leur place dans la liste, mais une
-    /// liste vide sans explication serait indéchiffrable, en particulier si le motif
-    /// d'extraction ne convient pas à la version installée.
+    /// Ils figurent dans la liste, mais ce compte reste utile à la barre d'état : voir
+    /// « 4 clients à l'écran de sélection » et aucun personnage nommé pointe le motif
+    /// d'extraction du titre, seul suspect quand la version installée n'a pas la forme
+    /// attendue.
     /// </summary>
-    public int PendingWindows { get; private set; }
+    public int PendingWindows => _pending.Count;
 
     /// <summary>
     /// Aligne la liste sur les fenêtres ouvertes : les emplacements connus retrouvent
     /// leur fenêtre, les personnages jamais vus sont ajoutés à la fin, et ceux dont le
     /// client est fermé restent en place (grisés) pour ne pas perdre leur raccourci.
     ///
-    /// Une fenêtre qui ne nomme aucun personnage est comptée et ignorée. Elle en nommera un
-    /// dans quelques secondes, et retrouvera alors l'emplacement persisté à ce nom — avec son
-    /// raccourci et sa position. Lui en créer un dès maintenant, sous son titre de passage,
-    /// laisserait derrière elle un emplacement orphelin à chaque changement de titre.
+    /// Une fenêtre qui ne nomme encore aucun personnage occupe une ligne éphémère en fin de
+    /// liste : on peut basculer dessus, mais rien d'elle n'est écrit dans le profil. Le titre
+    /// d'un client change deux fois avant de nommer un personnage — « Dofus », puis
+    /// « Dofus 3.6.10.11 - Release » — et persister un emplacement sous un titre de passage
+    /// est exactement ce qui laissait un orphelin derrière chaque changement. La ligne
+    /// éphémère, elle, s'efface d'elle-même : à la connexion, la fenêtre se nomme et
+    /// retrouve l'emplacement persisté à ce nom, avec son raccourci et sa position.
     /// </summary>
     public void Sync(IReadOnlyList<GameWindow> windows, List<CharacterSlot> slots)
     {
-        foreach (var entry in _entries) entry.Window = null;
+        // Une ligne éphémère se retrouve par sa fenêtre et non par un nom — elle n'en a pas.
+        // C'est aussi ce qui lui garde le même objet d'un rafraîchissement à l'autre, donc sa
+        // sélection dans l'interface, alors qu'elle est reconstruite chaque seconde.
+        var byHandle = _pending.Where(e => e.Window is not null).ToDictionary(e => e.Window!.Handle);
+
+        foreach (var entry in _slots) entry.Window = null;
+        foreach (var entry in _pending) entry.Window = null;
 
         // On repart des emplacements persistés pour que l'ordre choisi par l'utilisateur fasse foi.
         SyncSlots(slots);
 
-        PendingWindows = 0;
+        var anonymous = new List<GameWindow>();
         var unmatched = new List<(GameWindow Window, string Name)>();
 
         foreach (var window in windows)
         {
             if (window.CharacterName is not { Length: > 0 } name || string.IsNullOrWhiteSpace(name))
             {
-                PendingWindows++;
+                anonymous.Add(window);
                 continue;
             }
 
-            var entry = _entries.FirstOrDefault(e => e.Window is null && KeyMatches(e.Slot.Key, name));
+            var entry = _slots.FirstOrDefault(e => e.Window is null && KeyMatches(e.Slot.Key, name));
             if (entry is null) unmatched.Add((window, name));
             else entry.Window = window;
         }
@@ -75,8 +115,29 @@ public sealed class CharacterRoster
         {
             var slot = new CharacterSlot { Key = name };
             slots.Add(slot);
-            _entries.Add(new RosterEntry(slot) { Window = window });
+            _slots.Add(new RosterEntry(slot) { Window = window });
         }
+
+        // Les clients encore anonymes ferment la liste, ordonnés par identifiant de fenêtre.
+        // L'ordre d'énumération de Windows suit le premier plan : s'y fier ferait sauter le
+        // cycle sous les doigts, puisque basculer sur une fenêtre la remonterait dans la liste.
+        _pending.Clear();
+        foreach (var window in anonymous.OrderBy(w => w.Handle))
+        {
+            if (byHandle.TryGetValue(window.Handle, out var existing))
+            {
+                // Même fenêtre, titre peut-être différent : « Dofus » devenu « Dofus … - Release ».
+                existing.Slot.Key = window.Title;
+                existing.Window = window;
+                _pending.Add(existing);
+            }
+            else
+            {
+                _pending.Add(new RosterEntry(new CharacterSlot { Key = window.Title }, pending: true) { Window = window });
+            }
+        }
+
+        _entries = [.. _slots, .. _pending];
     }
 
     /// <summary>
@@ -88,31 +149,34 @@ public sealed class CharacterRoster
     /// </summary>
     public int ForgetAbsent(List<CharacterSlot> slots)
     {
-        var absent = _entries.Where(e => !e.IsPresent).Select(e => e.Slot).ToList();
+        // Les lignes éphémères ne sont pas concernées : elles ont toujours une fenêtre, et
+        // rien à oublier puisque rien n'est persisté.
+        var absent = _slots.Where(e => !e.IsPresent).Select(e => e.Slot).ToList();
 
         foreach (var slot in absent) slots.Remove(slot);
-        _entries.RemoveAll(e => absent.Contains(e.Slot));
+        _slots.RemoveAll(e => absent.Contains(e.Slot));
+        _entries = [.. _slots, .. _pending];
 
         return absent.Count;
     }
 
     private void SyncSlots(List<CharacterSlot> slots)
     {
-        _entries.RemoveAll(e => !slots.Contains(e.Slot));
+        _slots.RemoveAll(e => !slots.Contains(e.Slot));
         for (int i = 0; i < slots.Count; i++)
         {
-            var existing = _entries.FirstOrDefault(e => ReferenceEquals(e.Slot, slots[i]));
+            var existing = _slots.FirstOrDefault(e => ReferenceEquals(e.Slot, slots[i]));
             if (existing is null)
             {
-                _entries.Insert(Math.Min(i, _entries.Count), new RosterEntry(slots[i]));
+                _slots.Insert(Math.Min(i, _slots.Count), new RosterEntry(slots[i]));
             }
             else
             {
-                int current = _entries.IndexOf(existing);
-                if (current != i && i < _entries.Count)
+                int current = _slots.IndexOf(existing);
+                if (current != i && i < _slots.Count)
                 {
-                    _entries.RemoveAt(current);
-                    _entries.Insert(i, existing);
+                    _slots.RemoveAt(current);
+                    _slots.Insert(i, existing);
                 }
             }
         }
@@ -122,36 +186,46 @@ public sealed class CharacterRoster
         => string.Equals(slotKey, windowKey, StringComparison.OrdinalIgnoreCase);
 
     public RosterEntry? BySlotIndex(int index)
-        => index >= 0 && index < _entries.Count ? _entries[index] : null;
+        => index >= 0 && index < _entries.Length ? _entries[index] : null;
 
     public RosterEntry? ByHandle(nint handle)
         => handle == 0 ? null : _entries.FirstOrDefault(e => e.Window?.Handle == handle);
 
     public RosterEntry? First() => ActiveEntries.FirstOrDefault();
 
-    public RosterEntry? Next(nint currentHandle) => Step(currentHandle, +1);
+    /// <param name="includePending">
+    /// Inclure les clients qui ne nomment encore aucun personnage. Vrai pour la touche
+    /// « personnage suivant », qui sert justement à faire le tour des clients pendant qu'on
+    /// les connecte ; faux pour une étape de macro, qui vise un personnage.
+    /// </param>
+    public RosterEntry? Next(nint currentHandle, bool includePending = false)
+        => Step(currentHandle, +1, includePending);
 
-    public RosterEntry? Previous(nint currentHandle) => Step(currentHandle, -1);
+    /// <inheritdoc cref="Next"/>
+    public RosterEntry? Previous(nint currentHandle, bool includePending = false)
+        => Step(currentHandle, -1, includePending);
 
     /// <summary>
-    /// Avance dans la liste des personnages actifs en repartant de la fenêtre au premier plan.
-    /// Si le focus n'est sur aucun personnage connu, on repart du premier — c'est le
+    /// Avance dans la liste en repartant de la fenêtre au premier plan.
+    /// Si le focus n'est sur aucune fenêtre connue, on repart de la première — c'est le
     /// comportement attendu quand on revient d'un navigateur ou de Discord.
     /// </summary>
-    private RosterEntry? Step(nint currentHandle, int direction)
+    private RosterEntry? Step(nint currentHandle, int direction, bool includePending)
     {
-        var active = ActiveEntries;
-        if (active.Count == 0) return null;
+        var cycle = includePending
+            ? _entries.Where(e => e.IsSelectable).ToList()
+            : ActiveEntries;
+        if (cycle.Count == 0) return null;
 
         int index = -1;
-        for (int i = 0; i < active.Count; i++)
+        for (int i = 0; i < cycle.Count; i++)
         {
-            if (active[i].Window?.Handle == currentHandle) { index = i; break; }
+            if (cycle[i].Window?.Handle == currentHandle) { index = i; break; }
         }
-        if (index < 0) return active[0];
+        if (index < 0) return cycle[0];
 
-        int next = ((index + direction) % active.Count + active.Count) % active.Count;
-        return active[next];
+        int next = ((index + direction) % cycle.Count + cycle.Count) % cycle.Count;
+        return cycle[next];
     }
 
     public void Move(CharacterSlot slot, int delta, List<CharacterSlot> slots)

@@ -371,9 +371,12 @@ public sealed class OrganizerService : IDisposable, ILogSink
         return removed;
     }
 
-    public void FocusNext() => Activate(Roster.Next(_windows.GetForegroundWindow()));
+    // Les clients encore à l'écran de sélection font partie du tour : c'est pendant qu'on
+    // les connecte l'un après l'autre qu'on bascule le plus. Une étape de macro, elle, garde
+    // le tour restreint aux personnages nommés.
+    public void FocusNext() => Activate(Roster.Next(_windows.GetForegroundWindow(), includePending: true));
 
-    public void FocusPrevious() => Activate(Roster.Previous(_windows.GetForegroundWindow()));
+    public void FocusPrevious() => Activate(Roster.Previous(_windows.GetForegroundWindow(), includePending: true));
 
     public void FocusSlot(CharacterSlot slot)
         => Activate(Roster.Entries.FirstOrDefault(e => ReferenceEquals(e.Slot, slot)));

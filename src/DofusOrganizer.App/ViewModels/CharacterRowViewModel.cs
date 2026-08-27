@@ -12,10 +12,25 @@ public sealed class CharacterRowViewModel(RosterEntry entry, int position) : Obs
 
     public string PositionLabel => Position.ToString();
 
+    /// <summary>
+    /// Vrai pour un client qui ne nomme encore aucun personnage : il tient une ligne le
+    /// temps de sa connexion, sur laquelle on peut basculer, mais rien ne s'y attache —
+    /// elle s'effacera d'elle-même quand le personnage entrera en jeu.
+    /// </summary>
+    public bool IsPending => entry.IsPending;
+
+    /// <summary>Faux tant que la ligne ne désigne pas un personnage : il n'y a rien à quoi lier une touche.</summary>
+    public bool CanBind => !entry.IsPending;
+
     public string DisplayName
     {
         get => Slot.DisplayName;
-        set { Slot.DisplayName = value; Raise(); }
+        set
+        {
+            if (IsPending) return;   // renommer une ligne qui va disparaître n'aurait aucun effet
+            Slot.DisplayName = value;
+            Raise();
+        }
     }
 
     public bool Enabled
@@ -24,14 +39,19 @@ public sealed class CharacterRowViewModel(RosterEntry entry, int position) : Obs
         set { Slot.Enabled = value; Raise(); }
     }
 
-    public string HotkeyLabel => Slot.Hotkey?.ToString() ?? "(aucun)";
+    public string HotkeyLabel => IsPending ? "—" : Slot.Hotkey?.ToString() ?? "(aucun)";
 
     /// <summary>Titre brut de la fenêtre, affiché pour aider à régler le motif d'extraction des noms.</summary>
     public string WindowTitle => entry.Window?.Title ?? "—";
 
     public bool IsPresent => entry.IsPresent;
 
-    public string StatusLabel => entry.IsPresent ? "Connecté" : "Client fermé";
+    public string StatusLabel => entry switch
+    {
+        { IsPending: true } => "Écran de connexion",
+        { IsPresent: true } => "Connecté",
+        _ => "Client fermé",
+    };
 
     public void RefreshHotkey() => Raise(nameof(HotkeyLabel));
 }

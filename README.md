@@ -44,6 +44,16 @@ raccourci et sa position d'une session à l'autre. **Oublier les absents** les r
 coup quand la liste s'est encombrée — leurs raccourcis avec, d'où le fait que ce ne soit pas
 automatique.
 
+Un client qui n'a pas encore de personnage en jeu — au chargement, ou à l'écran de sélection —
+tient une ligne marquée **« Écran de connexion »**, en fin de liste. La touche « personnage
+suivant » y bascule comme sur les autres, ce qui est commode pour les connecter l'un après
+l'autre. Cette ligne-là ne retient rien : ni raccourci, ni place dans l'ordre, et elle
+s'efface d'elle-même dès que le personnage entre en jeu, sans laisser de doublon derrière
+elle. Le titre d'un client change deux fois avant de nommer un personnage, et c'est
+précisément d'avoir voulu retenir quelque chose sous un titre de passage que naissaient les
+doublons. Les macros, elles, ignorent ces lignes : rejouer une séquence de sorts sur un écran
+de sélection n'aurait pas de sens.
+
 **Jouez en mode fenêtré ou fenêtré sans bordure.** En plein écran exclusif, Windows gère
 mal le passage d'une fenêtre à l'autre et les changements sont lents ou refusés.
 

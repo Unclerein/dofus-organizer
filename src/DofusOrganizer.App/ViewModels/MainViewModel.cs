@@ -40,10 +40,12 @@ public sealed class MainViewModel : ObservableObject
         // Les commandes sont créées avant toute affectation de sélection : les
         // accesseurs de SelectedMacro et SelectedCharacter appellent RefreshCommands(),
         // qui les parcourt. Les remplir plus tard laisserait des références nulles.
-        MoveCharacterUpCommand = new RelayCommand(() => MoveCharacter(-1), () => SelectedCharacter is not null);
-        MoveCharacterDownCommand = new RelayCommand(() => MoveCharacter(+1), () => SelectedCharacter is not null);
-        AssignCharacterHotkeyCommand = new RelayCommand(async () => await AssignCharacterHotkeyAsync(), () => SelectedCharacter is not null);
-        ClearCharacterHotkeyCommand = new RelayCommand(ClearCharacterHotkey, () => SelectedCharacter is not null);
+        // Une ligne de client encore anonyme n'a ni raccourci ni place dans l'ordre : ces
+        // commandes-là resteraient sans effet, autant qu'elles se montrent inaccessibles.
+        MoveCharacterUpCommand = new RelayCommand(() => MoveCharacter(-1), () => SelectedCharacter?.CanBind == true);
+        MoveCharacterDownCommand = new RelayCommand(() => MoveCharacter(+1), () => SelectedCharacter?.CanBind == true);
+        AssignCharacterHotkeyCommand = new RelayCommand(async () => await AssignCharacterHotkeyAsync(), () => SelectedCharacter?.CanBind == true);
+        ClearCharacterHotkeyCommand = new RelayCommand(ClearCharacterHotkey, () => SelectedCharacter?.CanBind == true);
         FocusCharacterCommand = new RelayCommand(FocusCharacter, () => SelectedCharacter?.IsPresent == true);
         ForgetCharacterCommand = new RelayCommand(ForgetCharacter, () => SelectedCharacter?.IsPresent == false);
         ForgetAbsentCharactersCommand = new RelayCommand(ForgetAbsentCharacters);
@@ -249,15 +251,15 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>
     /// Compte les clients, en distinguant ceux qui ne nomment encore aucun personnage.
     ///
-    /// Ces derniers ne figurent pas dans la liste — sans quoi chaque titre de passage y
-    /// laisserait une entrée — mais les taire rendrait une liste vide indéchiffrable, et
-    /// masquerait le cas où le motif d'extraction ne convient pas à la version installée.
+    /// Ces derniers tiennent bien une ligne, mais les compter à part garde un signal utile :
+    /// des clients détectés dont pas un seul ne se nomme pointe le motif d'extraction du
+    /// titre, seul suspect quand la version installée n'a pas la forme attendue.
     /// </summary>
     public string PresentCount
     {
         get
         {
-            int present = _service.Roster.Entries.Count(e => e.IsPresent);
+            int present = _service.Roster.Entries.Count(e => e.IsPresent && !e.IsPending);
             int pending = _service.Roster.PendingWindows;
 
             string named = present switch
@@ -269,7 +271,7 @@ public sealed class MainViewModel : ObservableObject
 
             if (pending == 0) return named;
 
-            string waiting = pending == 1 ? "1 client en cours de connexion" : $"{pending} clients en cours de connexion";
+            string waiting = pending == 1 ? "1 client à l'écran de sélection" : $"{pending} clients à l'écran de sélection";
 
             // Des clients détectés dont aucun ne se nomme : le motif est le premier suspect,
             // et sans ce mot l'utilisateur ne verrait qu'une liste obstinément vide.
@@ -313,7 +315,7 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task AssignCharacterHotkeyAsync()
     {
-        if (SelectedCharacter is null) return;
+        if (SelectedCharacter is null || SelectedCharacter.IsPending) return;
         var hotkey = await CaptureAsync($"Appuyez sur la touche pour « {SelectedCharacter.DisplayName} »");
         if (hotkey is null) return;
         SelectedCharacter.Slot.Hotkey = hotkey;
