@@ -357,6 +357,10 @@
               <TextBlock Text="Après un cran de molette (ms)" Width="240" VerticalAlignment="Center" />
               <TextBox Text="{Binding Settings.ScrollDelayMs, UpdateSourceTrigger=LostFocus}" Width="80" />
             </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,3">
+              <TextBlock Text="Entre deux touches enchaînées (ms)" Width="240" VerticalAlignment="Center" />
+              <TextBox Text="{Binding Settings.TypingDelayMs, UpdateSourceTrigger=LostFocus}" Width="80" />
+            </StackPanel>
             <TextBlock Style="{StaticResource Hint}">
               Si des clics se perdent, augmentez le délai après changement de fenêtre : le client a besoin de quelques images avant d'accepter une entrée.
               Le délai du rejeu sur l'équipe est distinct et plus long : ouvrir une carte ou une liste prend bien plus de temps qu'enchaîner deux clics de sort.
@@ -367,7 +371,9 @@
               Trop long, il dépasse le seuil du système — une demi-seconde en général — et le jeu voit deux clics séparés.
               80 ms convient dans la plupart des cas ; montez à 120 ou 150 si un double-clic n'aboutit pas.
               La molette a elle aussi son délai propre, et court : une liste défile à la vitesse où on la fait
-              tourner, sans rien à ouvrir ni à charger.
+              tourner, sans rien à ouvrir ni à charger. Même chose pour des touches qui s'enchaînent, c'est-à-dire
+              une saisie — le nom d'un zaap dans un champ de recherche. Seule la dernière touche d'un mot garde le
+              délai ordinaire, celle après laquelle le jeu a quelque chose à faire.
             </TextBlock>
 
             <TextBlock Text="Touches lentes" Style="{StaticResource SectionHeader}" />

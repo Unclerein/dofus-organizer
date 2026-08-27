@@ -152,6 +152,11 @@ depuis la dernière fois.
   Le délai qui suit un défilement est court et distinct des autres — « Après un cran de molette »
   dans les Réglages — parce qu'une liste défile à la vitesse où on la fait tourner, sans rien à
   ouvrir ni à charger.
+- **Une saisie** — taper le nom d'un zaap dans un champ de recherche — est traitée de même : des
+  touches qui s'enchaînent sont espacées de « Entre deux touches enchaînées » et non du délai des
+  actions. Sans quoi écrire « Bonta » coûterait une demi-seconde par lettre lors d'un rejeu sur
+  l'équipe, multipliée par le nombre de personnages. Seule la **dernière** touche d'un mot garde le
+  délai ordinaire : c'est après elle que le jeu a quelque chose à faire.
 
 Si des clics se perdent, augmentez « Après un changement de fenêtre » dans les Réglages —
 le client a besoin de quelques images avant d'accepter une entrée.

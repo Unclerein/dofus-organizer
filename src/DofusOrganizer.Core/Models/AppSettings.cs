@@ -18,6 +18,7 @@ public sealed class AppSettings : NotifyBase
     private int _actionDelayMs = 30;
     private int _multiClickIntervalMs = 80;
     private int _scrollDelayMs = 40;
+    private int _typingDelayMs = 40;
     private bool _useScanCodes = true;
 
     /// <summary>
@@ -175,6 +176,23 @@ public sealed class AppSettings : NotifyBase
     {
         get => _multiClickIntervalMs;
         set => Set(ref _multiClickIntervalMs, Math.Clamp(value, 0, 1000));
+    }
+
+    /// <summary>
+    /// Pause entre deux touches qui s'enchaînent.
+    ///
+    /// Des touches consécutives, c'est de la saisie — le nom d'un zaap dans un champ de
+    /// recherche. Le jeu n'a rien à faire entre deux lettres, et leur appliquer le délai des
+    /// actions rendrait le moindre mot interminable : une demi-seconde par lettre lors d'un
+    /// rejeu sur l'équipe, multipliée par le nombre de personnages.
+    ///
+    /// La dernière touche d'une saisie n'est pas concernée : elle laisse au jeu le temps d'en
+    /// tenir compte, comme n'importe quelle action.
+    /// </summary>
+    public int TypingDelayMs
+    {
+        get => _typingDelayMs;
+        set => Set(ref _typingDelayMs, Math.Clamp(value, 0, 2000));
     }
 
     /// <summary>

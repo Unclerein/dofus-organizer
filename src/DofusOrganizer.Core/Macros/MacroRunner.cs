@@ -72,16 +72,24 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
 
     private async Task ExecuteAsync(IReadOnlyList<MacroStep> steps, CharacterRoster roster, AppSettings settings, RunState state, CancellationToken ct)
     {
-        foreach (var step in steps)
+        for (int i = 0; i < steps.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
-            await ExecuteStepAsync(step, roster, settings, state, ct).ConfigureAwait(false);
+
+            // L'étape suivante est connue d'avance : c'est ce qui permet de distinguer une
+            // touche isolée d'une saisie en cours. Voir StepPacing.
+            var next = i + 1 < steps.Count ? steps[i + 1] : null;
+
+            await ExecuteStepAsync(step: steps[i], next, roster, settings, state, ct).ConfigureAwait(false);
             state.StepsExecuted++;
         }
     }
 
-    private async Task ExecuteStepAsync(MacroStep step, CharacterRoster roster, AppSettings settings, RunState state, CancellationToken ct)
+    private async Task ExecuteStepAsync(
+        MacroStep step, MacroStep? next, CharacterRoster roster, AppSettings settings, RunState state, CancellationToken ct)
     {
+        int pause = StepPacing.After(step, next, settings, state.ActionDelayMs);
+
         switch (step)
         {
             case FocusStep focus:
@@ -95,7 +103,7 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
             case MouseClickStep click:
                 if (TryResolvePoint(click.Point, state, out var clickPoint))
                 {
-                    await ClickAsync(click, clickPoint, settings, state, ct).ConfigureAwait(false);
+                    await ClickAsync(click, clickPoint, settings, pause, ct).ConfigureAwait(false);
                 }
                 break;
 
@@ -107,9 +115,7 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
                 if (TryResolvePoint(scroll.Point, state, out var scrollPoint))
                 {
                     input.Scroll(scrollPoint, scroll.Direction == ScrollDirection.Up ? scroll.Notches : -scroll.Notches);
-
-                    // Le délai propre à la molette, jamais celui des actions — voir ScrollDelayMs.
-                    await clock.DelayAsync(settings.ScrollDelayMs, ct).ConfigureAwait(false);
+                    await clock.DelayAsync(pause, ct).ConfigureAwait(false);
                 }
                 break;
 
@@ -117,18 +123,13 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
                 if (TryResolvePoint(move.Point, state, out var movePoint))
                 {
                     input.MoveMouse(movePoint);
-                    await clock.DelayAsync(state.ActionDelayMs, ct).ConfigureAwait(false);
+                    await clock.DelayAsync(pause, ct).ConfigureAwait(false);
                 }
                 break;
 
             case KeyStep key:
                 input.SendKey(key.VirtualKey, key.Modifiers, key.Action, settings.UseScanCodes);
-                // Le supplément s'ajoute à la pause courante au lieu de la remplacer : lors d'un
-                // rejeu sur l'équipe, le délai du rejeu reste nécessaire pour tout le reste de la
-                // séquence, et l'ouverture d'un panneau lent vient par-dessus.
-                await clock
-                    .DelayAsync(state.ActionDelayMs + SlowKeys.ExtraDelayFor(key, settings.SlowKeys), ct)
-                    .ConfigureAwait(false);
+                await clock.DelayAsync(pause, ct).ConfigureAwait(false);
                 break;
 
             case DelayStep delay:
@@ -152,7 +153,7 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
     /// bien au-delà de ce seuil, ce qui redonnerait deux clics indépendants.
     /// </summary>
     private async Task ClickAsync(
-        MouseClickStep step, AbsolutePoint point, AppSettings settings, RunState state, CancellationToken ct)
+        MouseClickStep step, AbsolutePoint point, AppSettings settings, int pause, CancellationToken ct)
     {
         // Le point est résolu une fois par l'appelant : rechercher l'image entre les deux clics
         // relancerait une capture d'écran, et la ligne survolée ayant changé d'aspect depuis le
@@ -163,7 +164,7 @@ public sealed class MacroRunner(IWindowManager windows, IInputSender input, IClo
             input.Click(point, step.Button);
         }
 
-        await clock.DelayAsync(state.ActionDelayMs, ct).ConfigureAwait(false);
+        await clock.DelayAsync(pause, ct).ConfigureAwait(false);
     }
 
     private async Task RunLoopAsync(ForEachCharacterStep loop, CharacterRoster roster, AppSettings settings, RunState state, CancellationToken ct)
