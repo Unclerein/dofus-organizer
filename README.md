@@ -213,10 +213,17 @@ compte. Le mode retenu ici est le premier, à vous de le garder de ce côté.
 | `src/DofusOrganizer.Windows` | Appels Win32 : détection et activation des fenêtres, `SendInput`, hooks clavier/souris, enregistreur. |
 | `src/DofusOrganizer.App` | Interface WPF. |
 | `tests/DofusOrganizer.Core.Tests` | Tests de la logique métier, exécutés en CI sur Linux. |
+| `assets/` + `tools/build-icon.py` | Illustration de l'icône et fabrication du `.ico` posé sur l'exécutable. |
 
 Cette séparation est délibérée : tout ce qui peut se tromper silencieusement — le calcul
 des coordonnées de clic, l'ordre de parcours des personnages, la sérialisation des macros —
 vit dans `Core` derrière des interfaces, et se vérifie sans Windows ni client Dofus.
+
+L'icône de l'exécutable est fabriquée par `python3 tools/build-icon.py` (nécessite Pillow),
+qui recadre `assets/icon.*` sur le dessin puis en tire les neuf tailles que Windows réclame,
+de 16 à 256 pixels. Elle est versionnée : le script n'est à relancer qu'après un changement
+de dessin. Une icône Windows n'étant pas une image mais un conteneur de plusieurs tailles,
+la produire par un script plutôt qu'à la main garde le résultat reproductible.
 
 Reste l'interface, que les tests ne couvrent pas. `DofusOrganizer.exe --selftest` construit
 la fenêtre principale, parcourt les commandes d'édition puis calcule la mise en page de

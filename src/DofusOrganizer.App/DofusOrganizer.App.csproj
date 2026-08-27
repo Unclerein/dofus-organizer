@@ -6,6 +6,13 @@
     <RootNamespace>DofusOrganizer.App</RootNamespace>
     <AssemblyName>DofusOrganizer</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!--
+      Pose l'icône sur l'exécutable, y compris sur le mono-fichier autonome de la CI :
+      le SDK l'inscrit dans les ressources Win32 de l'hôte. WPF s'en sert ensuite pour
+      la fenêtre et la barre des tâches sans qu'il y ait à la déclarer une seconde fois.
+      Régénérer après un changement de dessin : python3 tools/build-icon.py
+    -->
+    <ApplicationIcon>appicon.ico</ApplicationIcon>
     <Version>1.0.0</Version>
     <Product>Dofus Organizer</Product>
     <AssemblyTitle>Dofus Organizer</AssemblyTitle>
