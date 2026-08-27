@@ -451,11 +451,14 @@
               Personnages montre ce que voit l'application, de quoi ajuster le motif.
             </TextBlock>
 
-            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+            <WrapPanel Margin="0,14,0,0">
               <Button Content="Enregistrer les réglages" Command="{Binding SaveCommand}" MinWidth="170"
                       Style="{StaticResource GoldButton}" />
               <Button Content="Rafraîchir la détection" Command="{Binding RefreshCommand}" MinWidth="170" />
-            </StackPanel>
+              <Button Content="Rétablir temporisations et détection"
+                      Command="{Binding RestoreDefaultSettingsCommand}" MinWidth="250"
+                      ToolTip="Remet les six temporisations, le motif du titre et la classe de fenêtre à leurs valeurs d'origine. Ne touche ni aux raccourcis, ni aux touches lentes, ni aux cases du comportement, ni aux macros." />
+            </WrapPanel>
           </StackPanel>
         </ScrollViewer>
       </TabItem>

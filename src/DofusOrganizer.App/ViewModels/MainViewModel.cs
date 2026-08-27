@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using DofusOrganizer.App.Services;
+using DofusOrganizer.Core.Config;
 using DofusOrganizer.Core.Models;
 
 namespace DofusOrganizer.App.ViewModels;
@@ -49,6 +50,7 @@ public sealed class MainViewModel : ObservableObject
         FocusCharacterCommand = new RelayCommand(FocusCharacter, () => SelectedCharacter?.IsPresent == true);
         ForgetCharacterCommand = new RelayCommand(ForgetCharacter, () => SelectedCharacter?.IsPresent == false);
         ForgetAbsentCharactersCommand = new RelayCommand(ForgetAbsentCharacters);
+        RestoreDefaultSettingsCommand = new RelayCommand(RestoreDefaultSettings);
 
         AddMacroCommand = new RelayCommand(AddMacro);
         DeleteMacroCommand = new RelayCommand(DeleteMacro, () => SelectedMacro is not null);
@@ -170,6 +172,7 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand FocusCharacterCommand { get; }
     public RelayCommand ForgetCharacterCommand { get; }
     public RelayCommand ForgetAbsentCharactersCommand { get; }
+    public RelayCommand RestoreDefaultSettingsCommand { get; }
     public RelayCommand AddMacroCommand { get; }
     public RelayCommand DeleteMacroCommand { get; }
     public RelayCommand AssignMacroHotkeyCommand { get; }
@@ -311,6 +314,24 @@ public sealed class MainViewModel : ObservableObject
             1 => "1 personnage absent retiré de la liste.",
             _ => $"{removed} personnages absents retirés de la liste.",
         };
+    }
+
+    /// <summary>
+    /// Rétablit les temporisations et la détection, et rien d'autre.
+    ///
+    /// Le détail de ce qui est touché vit dans Core, avec des tests : les raccourcis globaux
+    /// sont rangés dans le même objet que les temporisations, et les emporter au passage ne
+    /// se verrait qu'en jeu, longtemps après le clic.
+    ///
+    /// Le rafraîchissement qui suit n'est pas décoratif : le motif du titre vient de changer,
+    /// donc la liste des personnages aussi.
+    /// </summary>
+    private void RestoreDefaultSettings()
+    {
+        SettingsReset.RestoreDelaysAndDetection(Profile.Settings);
+        _service.Refresh();
+        _service.Save();
+        Status = "Temporisations et détection rétablies. Raccourcis, touches lentes et macros inchangés.";
     }
 
     private async Task AssignCharacterHotkeyAsync()

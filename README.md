@@ -107,6 +107,18 @@ La séquence capturée est conservée dans l'onglet **Macros** sous le nom « Re
 (dernière capture) », remplacée à chaque usage. C'est là qu'il faut aller quand le rejeu déçoit :
 on y lit l'enchaînement obtenu, on corrige une étape, et on relance avec **Tester**.
 
+### Revenir aux réglages d'origine
+
+**Rétablir temporisations et détection**, en bas de l'onglet Réglages, remet les six
+temporisations, le motif du titre et la classe de fenêtre à leurs valeurs de sortie d'usine.
+C'est la porte de sortie quand un motif saisi à la main ne reconnaît plus rien : il n'y a pas
+à retrouver l'expression régulière d'origine pour la retaper.
+
+Le bouton ne touche à rien d'autre. Ni aux raccourcis — ils sont pourtant rangés dans le même
+objet que les temporisations, d'où des tests qui vérifient nommément qu'ils survivent — ni aux
+touches lentes, qui portent une touche choisie à la main, ni aux cases du comportement, ni aux
+macros et aux personnages.
+
 ### Quand une touche met du temps à agir
 
 Un voyage commence souvent par la touche du havre-sac, dont le panneau met parfois un moment à

@@ -102,6 +102,10 @@ public partial class App : Application
         model.AddSlowKeyCommand.Execute(null);
         model.DeleteSlowKeyCommand.Execute(null);
 
+        // Le rétablissement des réglages touche à un objet lié à une douzaine de champs :
+        // c'est le genre de commande dont une liaison mal écrite ne se voit qu'au clic.
+        model.RestoreDefaultSettingsCommand.Execute(null);
+
         model.RefreshCommand.Execute(null);
         model.SaveCommand.Execute(null);
     }
