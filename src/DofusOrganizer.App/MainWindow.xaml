@@ -394,6 +394,10 @@
               délai ordinaire, celle après laquelle le jeu a quelque chose à faire.
             </TextBlock>
 
+            <Button Content="Rétablir les temporisations" Command="{Binding RestoreDefaultDelaysCommand}"
+                    MinWidth="200" HorizontalAlignment="Left" Margin="0,10,0,0"
+                    ToolTip="Remet les six valeurs ci-dessus à celles d'une installation neuve. Ne touche pas aux touches lentes, qui sont réglées ci-dessous, ni aux raccourcis, ni aux macros." />
+
             <TextBlock Text="Touches lentes" Style="{StaticResource SectionHeader}" />
             <TextBlock Style="{StaticResource Hint}">
               Certaines touches n'agissent pas sur-le-champ : celle du havre-sac ouvre un panneau qui met
@@ -451,14 +455,15 @@
               Personnages montre ce que voit l'application, de quoi ajuster le motif.
             </TextBlock>
 
-            <WrapPanel Margin="0,14,0,0">
+            <Button Content="Rétablir la détection" Command="{Binding RestoreDefaultDetectionCommand}"
+                    MinWidth="200" HorizontalAlignment="Left" Margin="0,6,0,0"
+                    ToolTip="Remet le motif du titre à sa valeur d'origine et vide le filtre de classe. La porte de sortie quand un motif saisi à la main ne reconnaît plus aucun personnage." />
+
+            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
               <Button Content="Enregistrer les réglages" Command="{Binding SaveCommand}" MinWidth="170"
                       Style="{StaticResource GoldButton}" />
               <Button Content="Rafraîchir la détection" Command="{Binding RefreshCommand}" MinWidth="170" />
-              <Button Content="Rétablir temporisations et détection"
-                      Command="{Binding RestoreDefaultSettingsCommand}" MinWidth="250"
-                      ToolTip="Remet les six temporisations, le motif du titre et la classe de fenêtre à leurs valeurs d'origine. Ne touche ni aux raccourcis, ni aux touches lentes, ni aux cases du comportement, ni aux macros." />
-            </WrapPanel>
+            </StackPanel>
           </StackPanel>
         </ScrollViewer>
       </TabItem>

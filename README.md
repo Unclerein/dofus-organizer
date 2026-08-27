@@ -109,15 +109,23 @@ on y lit l'enchaînement obtenu, on corrige une étape, et on relance avec **Tes
 
 ### Revenir aux réglages d'origine
 
-**Rétablir temporisations et détection**, en bas de l'onglet Réglages, remet les six
-temporisations, le motif du titre et la classe de fenêtre à leurs valeurs de sortie d'usine.
-C'est la porte de sortie quand un motif saisi à la main ne reconnaît plus rien : il n'y a pas
-à retrouver l'expression régulière d'origine pour la retaper.
+Deux boutons, chacun au pied de la section qu'il concerne dans l'onglet Réglages :
 
-Le bouton ne touche à rien d'autre. Ni aux raccourcis — ils sont pourtant rangés dans le même
-objet que les temporisations, d'où des tests qui vérifient nommément qu'ils survivent — ni aux
-touches lentes, qui portent une touche choisie à la main, ni aux cases du comportement, ni aux
-macros et aux personnages.
+- **Rétablir les temporisations** remet les six valeurs de la section Temporisations à celles
+  d'une installation neuve. Pas les touches lentes : ce sont bien des temporisations, mais
+  chacune est attachée à une touche choisie à la main — celle du havre-sac, typiquement — et
+  les effacer casserait une téléportation sans rien dire. Elles se retirent une à une avec
+  **Supprimer**, juste en dessous.
+- **Rétablir la détection** remet le motif du titre à sa valeur d'origine et vide le filtre de
+  classe. C'est la porte de sortie quand un motif saisi à la main ne reconnaît plus rien : il
+  n'y a pas à retrouver l'expression régulière d'origine pour la retaper.
+
+Deux boutons et non un seul parce que les deux pannes n'arrivent pas ensemble : réparer un
+motif de titre ne doit pas faire perdre des temporisations réglées machine par machine.
+
+Ni l'un ni l'autre ne touche aux raccourcis — ils sont pourtant rangés dans le même objet que
+les temporisations, d'où des tests qui vérifient nommément qu'ils survivent — ni aux cases du
+comportement, ni aux macros et aux personnages.
 
 ### Quand une touche met du temps à agir
 
