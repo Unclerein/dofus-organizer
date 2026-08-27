@@ -225,6 +225,12 @@ de 16 à 256 pixels. Elle est versionnée : le script n'est à relancer qu'aprè
 de dessin. Une icône Windows n'étant pas une image mais un conteneur de plusieurs tailles,
 la produire par un script plutôt qu'à la main garde le résultat reproductible.
 
+Le script encaisse une illustration livrée sur fond uni, sans couche alpha, qu'il détoure —
+sans quoi l'icône serait un carré blanc sur une barre des tâches sombre. Et il réduit en
+alpha prémultiplié : réduire une image transparente telle quelle mélange la couleur des
+pixels invisibles à celle de leurs voisins, ce qui ramène le fond en halo clair sur le
+pourtour, d'autant plus visible que la taille est petite.
+
 Reste l'interface, que les tests ne couvrent pas. `DofusOrganizer.exe --selftest` construit
 la fenêtre principale, parcourt les commandes d'édition puis calcule la mise en page de
 chaque onglet, et rend un code de sortie. La mise en page compte autant que le reste :
