@@ -4,25 +4,31 @@
         xmlns:vm="clr-namespace:DofusOrganizer.App.ViewModels"
         xmlns:models="clr-namespace:DofusOrganizer.Core.Models;assembly=DofusOrganizer.Core"
         Title="Dofus Organizer" Height="680" Width="1000" MinHeight="520" MinWidth="820"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Parchment}" Foreground="{StaticResource Ink}"
+        FontFamily="Segoe UI" FontSize="12.5"
+        TextOptions.TextFormattingMode="Display">
   <DockPanel>
 
     <!-- Barre d'état : compteur de clients, message courant et arrêt d'urgence -->
-    <Border DockPanel.Dock="Bottom" BorderBrush="#DDD" BorderThickness="0,1,0,0" Padding="10,6">
+    <Border DockPanel.Dock="Bottom" Background="{StaticResource Leather}"
+            BorderBrush="{StaticResource Gold}" BorderThickness="0,2,0,0" Padding="12,7"
+            TextElement.Foreground="{StaticResource GoldSoft}">
       <Grid>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <TextBlock Grid.Column="0" Text="{Binding PresentCount}" FontWeight="SemiBold" Margin="0,0,14,0" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="0" Text="{Binding PresentCount}" FontWeight="SemiBold"
+                   Foreground="{StaticResource GoldBright}" Margin="0,0,14,0" VerticalAlignment="Center" />
         <TextBlock Grid.Column="1" Text="{Binding Status}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
         <Button Grid.Column="2" Content="Arrêter la macro" Command="{Binding StopMacroCommand}"
-                Background="#FFE0E0" Margin="10,0,0,0" />
+                Style="{StaticResource DangerButton}" Margin="10,0,0,0" />
       </Grid>
     </Border>
 
-    <TabControl Margin="8">
+    <TabControl>
 
       <!-- ============ Personnages ============ -->
       <TabItem Header="Personnages">
@@ -44,7 +50,9 @@
                     SelectionMode="Single">
             <DataGrid.Columns>
               <DataGridTextColumn Header="#" Binding="{Binding PositionLabel}" IsReadOnly="True" Width="34" />
-              <DataGridCheckBoxColumn Header="Actif" Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="50" />
+              <DataGridCheckBoxColumn Header="Actif" Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="50"
+                                      ElementStyle="{StaticResource GridCheckBox}"
+                                      EditingElementStyle="{StaticResource GridCheckBox}" />
               <DataGridTextColumn Header="Personnage" Binding="{Binding DisplayName, UpdateSourceTrigger=LostFocus}" Width="2*" />
               <DataGridTextColumn Header="Raccourci" Binding="{Binding HotkeyLabel}" IsReadOnly="True" Width="130" />
               <DataGridTextColumn Header="État" Binding="{Binding StatusLabel}" IsReadOnly="True" Width="100" />
@@ -86,7 +94,7 @@
                 <DataTemplate>
                   <StackPanel Margin="2,4">
                     <TextBlock Text="{Binding Macro.Name}" FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding Macro.Summary}" Foreground="#777" FontSize="11" />
+                    <TextBlock Text="{Binding Macro.Summary}" Style="{StaticResource Secondary}" />
                   </StackPanel>
                 </DataTemplate>
               </ListBox.ItemTemplate>
@@ -114,7 +122,8 @@
                 <TextBlock Grid.Column="0" Text="Nom" VerticalAlignment="Center" Margin="0,0,8,0" />
                 <TextBox Grid.Column="1" Text="{Binding Macro.Name, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Grid.Column="2" Text="{Binding Macro.Hotkey, TargetNullValue=(aucun raccourci)}"
-                           VerticalAlignment="Center" Margin="12,0,8,0" FontWeight="SemiBold" />
+                           VerticalAlignment="Center" Margin="12,0,8,0" FontWeight="SemiBold"
+                           Foreground="{StaticResource Wood}" />
                 <Button Grid.Column="3" Content="Assigner"
                         Command="{Binding DataContext.AssignMacroHotkeyCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
                 <Button Grid.Column="4" Content="Effacer"
@@ -137,7 +146,7 @@
                     <ItemsControl ItemsSource="{Binding Steps}" Margin="18,2,0,0">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                          <TextBlock Text="{Binding Description}" Foreground="#666" FontSize="11" />
+                          <TextBlock Text="{Binding Description}" Style="{StaticResource Secondary}" />
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -147,7 +156,7 @@
             </ListBox>
 
             <!-- Panneau de propriétés, adapté au type d'étape sélectionné -->
-            <Border Grid.Row="2" BorderBrush="#DDD" BorderThickness="1" Padding="10" Margin="0,8,0,0"
+            <Border Grid.Row="2" Style="{StaticResource Card}" Padding="10" Margin="0,8,0,0"
                     Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}}">
               <ContentControl Content="{Binding SelectedStep}">
                 <ContentControl.Resources>
@@ -264,7 +273,7 @@
               <Border Width="14" />
               <Button Content="{Binding DataContext.RecordingLabel, RelativeSource={RelativeSource AncestorType=Window}}"
                       Command="{Binding DataContext.ToggleRecordingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                      MinWidth="170" Background="#EAF3FF" />
+                      MinWidth="170" Style="{StaticResource GoldButton}" />
               <Button Content="Tester" Command="{Binding DataContext.RunMacroCommand, RelativeSource={RelativeSource AncestorType=Window}}" MinWidth="80" />
             </WrapPanel>
           </Grid>
@@ -289,27 +298,27 @@
               </Grid.RowDefinitions>
 
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Personnage suivant" VerticalAlignment="Center" Margin="0,4" />
-              <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold"
+              <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{StaticResource Wood}"
                          Text="{Binding Settings.NextCharacterHotkey, TargetNullValue=(aucun)}" />
               <Button Grid.Row="0" Grid.Column="2" Content="Assigner" Command="{Binding AssignNextHotkeyCommand}" Margin="0,2" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Personnage précédent" VerticalAlignment="Center" Margin="0,4" />
-              <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold"
+              <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{StaticResource Wood}"
                          Text="{Binding Settings.PreviousCharacterHotkey, TargetNullValue=(aucun)}" />
               <Button Grid.Row="1" Grid.Column="2" Content="Assigner" Command="{Binding AssignPreviousHotkeyCommand}" Margin="0,2" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="Arrêt d'urgence" VerticalAlignment="Center" Margin="0,4" />
-              <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold"
+              <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{StaticResource Wood}"
                          Text="{Binding Settings.PanicHotkey, TargetNullValue=(aucun)}" />
               <Button Grid.Row="2" Grid.Column="2" Content="Assigner" Command="{Binding AssignPanicHotkeyCommand}" Margin="0,2" />
 
               <TextBlock Grid.Row="3" Grid.Column="0" Text="Démarrer / arrêter l'enregistrement" VerticalAlignment="Center" Margin="0,4" />
-              <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold"
+              <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{StaticResource Wood}"
                          Text="{Binding Settings.ToggleRecordingHotkey, TargetNullValue=(aucun)}" />
               <Button Grid.Row="3" Grid.Column="2" Content="Assigner" Command="{Binding AssignToggleRecordingHotkeyCommand}" Margin="0,2" />
 
               <TextBlock Grid.Row="4" Grid.Column="0" Text="Refaire sur l'équipe" VerticalAlignment="Center" Margin="0,4" />
-              <TextBlock Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold"
+              <TextBlock Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{StaticResource Wood}"
                          Text="{Binding Settings.RepeatOnTeamHotkey, TargetNullValue=(aucun)}" />
               <Button Grid.Row="4" Grid.Column="2" Content="Assigner" Command="{Binding AssignRepeatOnTeamHotkeyCommand}" Margin="0,2" />
             </Grid>
@@ -401,7 +410,8 @@
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                   <TextBlock Text="Touche" Width="130" VerticalAlignment="Center" />
                   <TextBlock Text="{Binding SelectedSlowKey.Key, TargetNullValue=(aucune)}"
-                             Width="150" VerticalAlignment="Center" FontWeight="SemiBold" />
+                             Width="150" VerticalAlignment="Center" FontWeight="SemiBold"
+                             Foreground="{StaticResource Wood}" />
                   <Button Content="Assigner" Command="{Binding AssignSlowKeyCommand}" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">

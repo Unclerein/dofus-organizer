@@ -3,20 +3,582 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              ShutdownMode="OnMainWindowClose">
   <Application.Resources>
+
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+    <!-- ============================================================
+         Palette : parchemin et or sur cuir sombre.
+         Volontairement claire pour le contenu : l'application est faite de
+         tableaux denses et de champs de réglage, qu'un fond sombre rendrait
+         pénibles à lire. Le cuir est réservé aux bandeaux — onglets et barre
+         d'état — où il pose le décor sans gêner la lecture.
+         ============================================================ -->
+
+    <Color x:Key="ParchmentColor">#F3E7CE</Color>
+    <Color x:Key="SurfaceColor">#FCF6E8</Color>
+    <Color x:Key="SurfaceAltColor">#F6EDD8</Color>
+    <Color x:Key="InkColor">#3A2A18</Color>
+    <Color x:Key="InkMutedColor">#7C6446</Color>
+    <Color x:Key="LeatherColor">#2E2217</Color>
+    <Color x:Key="LeatherLightColor">#463526</Color>
+    <Color x:Key="WoodColor">#4A3826</Color>
+    <Color x:Key="GoldColor">#C08A22</Color>
+    <Color x:Key="GoldBrightColor">#E2B455</Color>
+    <Color x:Key="GoldSoftColor">#EFDCAA</Color>
+    <Color x:Key="BorderWarmColor">#D5BF93</Color>
+    <Color x:Key="DangerColor">#A33227</Color>
+    <Color x:Key="DangerSoftColor">#F0D5CF</Color>
+
+    <SolidColorBrush x:Key="Parchment" Color="{StaticResource ParchmentColor}" />
+    <SolidColorBrush x:Key="Surface" Color="{StaticResource SurfaceColor}" />
+    <SolidColorBrush x:Key="SurfaceAlt" Color="{StaticResource SurfaceAltColor}" />
+    <SolidColorBrush x:Key="Ink" Color="{StaticResource InkColor}" />
+    <SolidColorBrush x:Key="InkMuted" Color="{StaticResource InkMutedColor}" />
+    <SolidColorBrush x:Key="Leather" Color="{StaticResource LeatherColor}" />
+    <SolidColorBrush x:Key="LeatherLight" Color="{StaticResource LeatherLightColor}" />
+    <SolidColorBrush x:Key="Wood" Color="{StaticResource WoodColor}" />
+    <SolidColorBrush x:Key="Gold" Color="{StaticResource GoldColor}" />
+    <SolidColorBrush x:Key="GoldBright" Color="{StaticResource GoldBrightColor}" />
+    <SolidColorBrush x:Key="GoldSoft" Color="{StaticResource GoldSoftColor}" />
+    <SolidColorBrush x:Key="BorderWarm" Color="{StaticResource BorderWarmColor}" />
+    <SolidColorBrush x:Key="Danger" Color="{StaticResource DangerColor}" />
+    <SolidColorBrush x:Key="DangerSoft" Color="{StaticResource DangerSoftColor}" />
+
+    <!-- ============================================================ Texte
+
+         Il n'y a délibérément aucun style implicite pour TextBlock.
+         Un ContentPresenter fabrique un TextBlock pour tout contenu textuel —
+         libellé de bouton, en-tête de colonne, titre d'onglet — et ce TextBlock
+         hériterait d'un style implicite dont la couleur écraserait celle du
+         contrôle qui le porte : de l'encre sombre sur du cuir sombre.
+         La couleur et la police descendent donc par héritage depuis la fenêtre.
+         ============================================================ -->
+
+    <Style TargetType="TextBlock" x:Key="SectionHeader">
+      <Setter Property="Foreground" Value="{StaticResource Wood}" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,16,0,6" />
+    </Style>
+
+    <Style TargetType="TextBlock" x:Key="Hint">
+      <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+      <Setter Property="FontSize" Value="11.5" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Margin" Value="0,2,0,8" />
+    </Style>
+
+    <!-- Texte secondaire au fil d'une liste : résumé de macro, sous-étape. -->
+    <Style TargetType="TextBlock" x:Key="Secondary">
+      <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+
+    <!-- Encadré posé sur le parchemin : panneau de propriétés d'une étape. -->
+    <Style TargetType="Border" x:Key="Card">
+      <Setter Property="Background" Value="{StaticResource Surface}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderWarm}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
+    <!-- ============================================================ Boutons
+
+         Les métriques d'origine sont conservées au pixel près — remplissage,
+         marge, largeur minimale — pour que le nouvel habillage ne déplace
+         aucune disposition existante.
+         ============================================================ -->
+
     <Style TargetType="Button">
       <Setter Property="Padding" Value="10,4" />
       <Setter Property="Margin" Value="0,0,6,0" />
       <Setter Property="MinWidth" Value="86" />
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Setter Property="Background" Value="{StaticResource Surface}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderWarm}" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="SnapsToDevicePixels" Value="True" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Chrome"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Margin="{TemplateBinding Padding}"
+                                RecognizesAccessKey="True" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource GoldSoft}" />
+                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource Gold}" />
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource GoldBright}" />
+                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource Wood}" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SurfaceAlt}" />
+                <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+                <Setter Property="Opacity" Value="0.65" />
+                <Setter Property="Cursor" Value="Arrow" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
-    <Style TargetType="TextBlock" x:Key="SectionHeader">
+
+    <!-- Action principale d'un écran : fond doré plein. -->
+    <Style TargetType="Button" x:Key="GoldButton" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="{StaticResource GoldSoft}" />
+      <Setter Property="BorderBrush" Value="{StaticResource Gold}" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Margin" Value="0,10,0,4" />
     </Style>
-    <Style TargetType="TextBlock" x:Key="Hint">
-      <Setter Property="Foreground" Value="#666" />
-      <Setter Property="TextWrapping" Value="Wrap" />
-      <Setter Property="Margin" Value="0,2,0,8" />
+
+    <!-- Arrêt d'urgence : il doit se distinguer du reste au premier coup d'œil. -->
+    <Style TargetType="Button" x:Key="DangerButton" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="{StaticResource DangerSoft}" />
+      <Setter Property="BorderBrush" Value="{StaticResource Danger}" />
+      <Setter Property="Foreground" Value="{StaticResource Danger}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
+
+    <!-- ============================================================ Saisie -->
+
+    <Style TargetType="TextBox">
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Setter Property="Background" Value="{StaticResource Surface}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderWarm}" />
+      <Setter Property="Padding" Value="6,3" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="SnapsToDevicePixels" Value="True" />
+      <Setter Property="CaretBrush" Value="{StaticResource Ink}" />
+      <Setter Property="SelectionBrush" Value="{StaticResource GoldBright}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border x:Name="Chrome"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="3">
+              <ScrollViewer x:Name="PART_ContentHost"
+                            Margin="{TemplateBinding Padding}"
+                            VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource Gold}" />
+              </Trigger>
+              <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource Gold}" />
+                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource Surface}" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SurfaceAlt}" />
+                <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="SnapsToDevicePixels" Value="True" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <StackPanel Orientation="Horizontal" Background="Transparent">
+              <Border x:Name="Box" Width="16" Height="16" CornerRadius="3"
+                      Background="{StaticResource Surface}"
+                      BorderBrush="{StaticResource BorderWarm}" BorderThickness="1"
+                      VerticalAlignment="Center">
+                <Path x:Name="Check" Visibility="Collapsed"
+                      Data="M 2,6 L 5.5,10 L 12,2.5"
+                      Stroke="{StaticResource Wood}" StrokeThickness="2"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+              </Border>
+              <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" RecognizesAccessKey="True" />
+            </StackPanel>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+                <Setter TargetName="Box" Property="Background" Value="{StaticResource GoldSoft}" />
+                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Gold}" />
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Gold}" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+                <Setter Property="Opacity" Value="0.65" />
+                <Setter Property="Cursor" Value="Arrow" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!--
+      DataGridCheckBoxColumn impose son propre ElementStyle, sans BasedOn : sans
+      celui-ci, la case « Actif » resterait la case Windows d'origine au milieu
+      d'un tableau habillé. La colonne le désigne explicitement.
+    -->
+    <Style TargetType="CheckBox" x:Key="GridCheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="IsThreeState" Value="False" />
+    </Style>
+
+    <!-- ============================================================ Listes déroulantes -->
+
+    <Style TargetType="ComboBoxItem">
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="SnapsToDevicePixels" Value="True" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ComboBoxItem">
+            <Border x:Name="Chrome" Background="Transparent" Padding="{TemplateBinding Padding}">
+              <ContentPresenter />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource GoldSoft}" />
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource GoldBright}" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="ComboBox">
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Setter Property="Background" Value="{StaticResource Surface}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderWarm}" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="SnapsToDevicePixels" Value="True" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ComboBox">
+            <Grid>
+              <ToggleButton x:Name="Toggle" Focusable="False" ClickMode="Press"
+                            IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                <ToggleButton.Template>
+                  <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Chrome"
+                            Background="{StaticResource Surface}"
+                            BorderBrush="{StaticResource BorderWarm}"
+                            BorderThickness="1" CornerRadius="3">
+                      <Path x:Name="Arrow" HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Margin="0,0,8,0" Data="M 0,0 L 8,0 L 4,5 Z"
+                            Fill="{StaticResource Wood}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                      <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource Gold}" />
+                      </Trigger>
+                      <Trigger Property="IsChecked" Value="True">
+                        <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource Gold}" />
+                        <Setter TargetName="Chrome" Property="Background" Value="{StaticResource GoldSoft}" />
+                      </Trigger>
+                      <Trigger Property="IsEnabled" Value="False">
+                        <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SurfaceAlt}" />
+                        <Setter TargetName="Arrow" Property="Fill" Value="{StaticResource InkMuted}" />
+                      </Trigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </ToggleButton.Template>
+              </ToggleButton>
+
+              <ContentPresenter x:Name="Selection"
+                                Margin="{TemplateBinding Padding}"
+                                Content="{TemplateBinding SelectionBoxItem}"
+                                ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                HorizontalAlignment="Left" VerticalAlignment="Center"
+                                IsHitTestVisible="False" />
+
+              <Popup x:Name="PART_Popup" AllowsTransparency="True" Focusable="False"
+                     Placement="Bottom" PopupAnimation="Fade"
+                     IsOpen="{TemplateBinding IsDropDownOpen}">
+                <Border Background="{StaticResource Surface}"
+                        BorderBrush="{StaticResource Gold}" BorderThickness="1" CornerRadius="3"
+                        MinWidth="{TemplateBinding ActualWidth}"
+                        MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                        Margin="0,2,0,0">
+                  <ScrollViewer>
+                    <ItemsPresenter />
+                  </ScrollViewer>
+                </Border>
+              </Popup>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Selection" Property="Opacity" Value="0.65" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- ============================================================ Listes -->
+
+    <Style TargetType="ListBox">
+      <Setter Property="Background" Value="{StaticResource Surface}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderWarm}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Setter Property="Padding" Value="2" />
+    </Style>
+
+    <Style TargetType="ListBoxItem">
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Setter Property="Padding" Value="7,4" />
+      <Setter Property="SnapsToDevicePixels" Value="True" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ListBoxItem">
+            <Border x:Name="Chrome" Background="Transparent" CornerRadius="3"
+                    BorderBrush="Transparent" BorderThickness="1"
+                    Padding="{TemplateBinding Padding}" Margin="1">
+              <ContentPresenter />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SurfaceAlt}" />
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource GoldSoft}" />
+                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource Gold}" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- ============================================================ Tableau des personnages -->
+
+    <Style TargetType="DataGrid">
+      <Setter Property="Background" Value="{StaticResource Surface}" />
+      <Setter Property="RowBackground" Value="{StaticResource Surface}" />
+      <Setter Property="AlternatingRowBackground" Value="{StaticResource SurfaceAlt}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderWarm}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderWarm}" />
+      <Setter Property="VerticalGridLinesBrush" Value="Transparent" />
+      <Setter Property="RowHeaderWidth" Value="0" />
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Setter Property="GridLinesVisibility" Value="Horizontal" />
+    </Style>
+
+    <Style TargetType="DataGridColumnHeader">
+      <Setter Property="Background" Value="{StaticResource Wood}" />
+      <Setter Property="Foreground" Value="{StaticResource Parchment}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="9,7" />
+      <Setter Property="BorderBrush" Value="{StaticResource LeatherLight}" />
+      <Setter Property="BorderThickness" Value="0,0,1,0" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+    </Style>
+
+    <!--
+      La sélection et le survol se peignent sur la ligne, jamais sur la cellule :
+      le gabarit de cellule ci-dessous garde un fond transparent pour les laisser
+      transparaître, sans quoi la cellule recouvrirait la ligne.
+    -->
+    <Style TargetType="DataGridRow">
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="{StaticResource GoldSoft}" />
+        </Trigger>
+        <Trigger Property="IsSelected" Value="True">
+          <Setter Property="Background" Value="{StaticResource GoldBright}" />
+          <Setter Property="Foreground" Value="{StaticResource Ink}" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <Style TargetType="DataGridCell">
+      <Setter Property="Padding" Value="9,6" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="DataGridCell">
+            <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+              <ContentPresenter VerticalAlignment="Center" />
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <!-- La ligne porte déjà la couleur ; la cellule ne fait que suivre l'encre. -->
+        <Trigger Property="IsSelected" Value="True">
+          <Setter Property="Foreground" Value="{StaticResource Ink}" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <!-- ============================================================ Barres de défilement -->
+
+    <Style TargetType="RepeatButton" x:Key="ScrollPageButton">
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="IsTabStop" Value="False" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RepeatButton">
+            <Border Background="Transparent" />
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="Thumb" x:Key="ScrollThumb">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Thumb">
+            <Border x:Name="Grip" Background="{StaticResource BorderWarm}" CornerRadius="4" Margin="2" />
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Grip" Property="Background" Value="{StaticResource Gold}" />
+              </Trigger>
+              <Trigger Property="IsDragging" Value="True">
+                <Setter TargetName="Grip" Property="Background" Value="{StaticResource Wood}" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <ControlTemplate x:Key="VerticalScrollBar" TargetType="ScrollBar">
+      <Border Background="{StaticResource SurfaceAlt}" CornerRadius="5">
+        <Track x:Name="PART_Track" IsDirectionReversed="True">
+          <Track.DecreaseRepeatButton>
+            <RepeatButton Command="ScrollBar.PageUpCommand" Style="{StaticResource ScrollPageButton}" />
+          </Track.DecreaseRepeatButton>
+          <Track.Thumb>
+            <Thumb Style="{StaticResource ScrollThumb}" />
+          </Track.Thumb>
+          <Track.IncreaseRepeatButton>
+            <RepeatButton Command="ScrollBar.PageDownCommand" Style="{StaticResource ScrollPageButton}" />
+          </Track.IncreaseRepeatButton>
+        </Track>
+      </Border>
+    </ControlTemplate>
+
+    <ControlTemplate x:Key="HorizontalScrollBar" TargetType="ScrollBar">
+      <Border Background="{StaticResource SurfaceAlt}" CornerRadius="5">
+        <Track x:Name="PART_Track" IsDirectionReversed="False">
+          <Track.DecreaseRepeatButton>
+            <RepeatButton Command="ScrollBar.PageLeftCommand" Style="{StaticResource ScrollPageButton}" />
+          </Track.DecreaseRepeatButton>
+          <Track.Thumb>
+            <Thumb Style="{StaticResource ScrollThumb}" />
+          </Track.Thumb>
+          <Track.IncreaseRepeatButton>
+            <RepeatButton Command="ScrollBar.PageRightCommand" Style="{StaticResource ScrollPageButton}" />
+          </Track.IncreaseRepeatButton>
+        </Track>
+      </Border>
+    </ControlTemplate>
+
+    <Style TargetType="ScrollBar">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Width" Value="11" />
+      <Setter Property="MinWidth" Value="11" />
+      <Setter Property="Template" Value="{StaticResource VerticalScrollBar}" />
+      <Style.Triggers>
+        <Trigger Property="Orientation" Value="Horizontal">
+          <Setter Property="Width" Value="Auto" />
+          <Setter Property="MinWidth" Value="0" />
+          <Setter Property="Height" Value="11" />
+          <Setter Property="MinHeight" Value="11" />
+          <Setter Property="Template" Value="{StaticResource HorizontalScrollBar}" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <!-- ============================================================ Onglets
+
+         Le seul endroit, avec la barre d'état, où le cuir sombre s'installe :
+         il encadre le contenu sans jamais passer dessous.
+         ============================================================ -->
+
+    <Style TargetType="TabControl">
+      <Setter Property="Background" Value="{StaticResource Parchment}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TabControl">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+              </Grid.RowDefinitions>
+
+              <Border Grid.Row="0" Background="{StaticResource Leather}"
+                      BorderBrush="{StaticResource Gold}" BorderThickness="0,0,0,2">
+                <TabPanel IsItemsHost="True" Margin="10,7,10,0" KeyboardNavigation.TabIndex="1" />
+              </Border>
+
+              <Border Grid.Row="1" Background="{StaticResource Parchment}">
+                <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent" />
+              </Border>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="TabItem">
+      <Setter Property="Foreground" Value="{StaticResource GoldSoft}" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="SnapsToDevicePixels" Value="True" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TabItem">
+            <Border x:Name="Chrome" Background="Transparent" Margin="0,0,4,0"
+                    CornerRadius="4,4,0,0" Padding="16,7">
+              <ContentPresenter x:Name="Label" ContentSource="Header"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                RecognizesAccessKey="True" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource LeatherLight}" />
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource Parchment}" />
+                <Setter Property="Foreground" Value="{StaticResource Ink}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
   </Application.Resources>
 </Application>

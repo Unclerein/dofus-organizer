@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Threading;
 using DofusOrganizer.App.ViewModels;
 
@@ -59,9 +60,10 @@ public partial class App : Application
         {
             var window = new MainWindow(profile);
             ExerciseEditor((MainViewModel)window.DataContext);
+            ExerciseLayout(window);
             window.ReleaseResources();
 
-            Console.WriteLine("Contrôle de démarrage : fenêtre construite et éditeur parcouru sans erreur.");
+            Console.WriteLine("Contrôle de démarrage : fenêtre construite, éditeur parcouru et mise en page calculée sans erreur.");
             return 0;
         }
         catch (Exception ex)
@@ -102,6 +104,49 @@ public partial class App : Application
 
         model.RefreshCommand.Execute(null);
         model.SaveCommand.Execute(null);
+    }
+
+    /// <summary>
+    /// Applique les gabarits et calcule une mise en page complète, onglet par onglet.
+    ///
+    /// Construire la fenêtre ne fait que charger le XAML : une ressource mal typée dans un
+    /// ControlTemplate, ou un gabarit auquel il manque une pièce, ne se révèle qu'au moment
+    /// où le gabarit est appliqué — c'est-à-dire à la première mesure. Et le contenu d'un
+    /// onglet non sélectionné n'est jamais réalisé tant qu'on ne l'a pas montré, d'où le
+    /// passage par chacun.
+    /// </summary>
+    private static void ExerciseLayout(MainWindow window)
+    {
+        if (window.Content is not FrameworkElement content) return;
+
+        var tabs = FindTabControl(content);
+        int tabCount = tabs?.Items.Count ?? 0;
+
+        for (int i = 0; i < Math.Max(tabCount, 1); i++)
+        {
+            if (tabs is not null && i < tabCount) tabs.SelectedIndex = i;
+
+            content.Measure(new Size(window.Width, window.Height));
+            content.Arrange(new Rect(0, 0, window.Width, window.Height));
+            content.UpdateLayout();
+        }
+
+        if (tabs is not null && tabCount > 0) tabs.SelectedIndex = 0;
+    }
+
+    /// <summary>
+    /// Parcourt l'arbre logique — le visuel n'existe pas encore avant la première mesure.
+    /// </summary>
+    private static TabControl? FindTabControl(DependencyObject root)
+    {
+        if (root is TabControl found) return found;
+
+        foreach (object child in LogicalTreeHelper.GetChildren(root))
+        {
+            if (child is DependencyObject node && FindTabControl(node) is { } match) return match;
+        }
+
+        return null;
     }
 
     private void OnDispatcherException(object sender, DispatcherUnhandledExceptionEventArgs e)
