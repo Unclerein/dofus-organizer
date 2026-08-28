@@ -118,6 +118,7 @@ public static class DragReorder
     {
         if (sender is not ItemsControl items || !e.Data.GetDataPresent(Format)) return;
 
+        AutoScroll(items, e.GetPosition(items));
         HideLine();
         e.Effects = DragDropEffects.None;
         e.Handled = true;
@@ -140,6 +141,37 @@ public static class DragReorder
     }
 
     private static void OnDragLeave(object sender, DragEventArgs e) => HideLine();
+
+    /// <summary>Bande, en pixels, où l'approche du bord déclenche le défilement.</summary>
+    private const double ScrollMargin = 28;
+
+    /// <summary>
+    /// Fait défiler la liste quand le curseur approche d'un bord, pendant un glisser.
+    ///
+    /// La molette ne peut pas servir ici : pendant un glisser, Windows capte l'entrée et ne
+    /// route pas ses événements vers la cible. Le défilement de bord est le mécanisme qu'emploie
+    /// tout gestionnaire de fichiers pour la même raison — et sans lui, une liste plus haute que
+    /// sa fenêtre interdit de déplacer une ligne au-delà de ce qui est visible.
+    /// </summary>
+    private static void AutoScroll(ItemsControl items, Point point)
+    {
+        if (FindScrollViewer(items) is not { } scroller) return;
+
+        if (point.Y < ScrollMargin) scroller.LineUp();
+        else if (point.Y > items.ActualHeight - ScrollMargin) scroller.LineDown();
+    }
+
+    private static ScrollViewer? FindScrollViewer(DependencyObject root)
+    {
+        if (root is ScrollViewer found) return found;
+
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            if (FindScrollViewer(VisualTreeHelper.GetChild(root, i)) is { } match) return match;
+        }
+
+        return null;
+    }
 
     private static void HideLine()
     {

@@ -366,20 +366,47 @@
                          Style="{StaticResource SectionHeader}"
                          ToolTip="Ils doivent tous pouvoir l'ouvrir sans se déplacer : la macro clique au même endroit sur chacun." />
 
-              <TextBlock Text="2. Désignez les points" Style="{StaticResource SectionHeader}" />
+              <TextBlock Text="2. Relevez la grille du coffre (une fois)"
+                         Style="{StaticResource SectionHeader}" />
+              <TextBlock Style="{StaticResource Hint}">
+                Deux clics — le centre de la case en haut à gauche, puis celui de la case en bas
+                à droite — suffisent à décrire toute la grille. Elle est conservée : à refaire
+                seulement si vous changez de banque ou de taille de fenêtre.
+              </TextBlock>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                <TextBlock Text="Lignes" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBox Text="{Binding Settings.ChestGrid.Rows, UpdateSourceTrigger=LostFocus}" Width="50" Margin="0,0,16,0" />
+                <TextBlock Text="Colonnes" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBox Text="{Binding Settings.ChestGrid.Columns, UpdateSourceTrigger=LostFocus}" Width="50" />
+              </StackPanel>
+              <WrapPanel>
+                <Button Content="Calibrer la grille" Command="{Binding CalibrateChestGridCommand}" MinWidth="160" />
+                <Button Content="Oublier" Command="{Binding ForgetChestGridCommand}" MinWidth="100" />
+              </WrapPanel>
+              <TextBlock Text="{Binding ChestGridSummary}" Style="{StaticResource Hint}" Margin="0,6,0,0" />
+
+              <TextBlock Text="3. Désignez les points" Style="{StaticResource SectionHeader}" />
               <TextBlock Style="{StaticResource Hint}">
                 Le coffre, puis la case d'arrivée dans votre inventaire, puis les items — dans
                 l'ordre du coffre. Vos clics ne parviennent pas au jeu pendant la désignation.
               </TextBlock>
 
-              <WrapPanel Margin="0,8,0,0">
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                <TextBlock Text="Items" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <ComboBox Width="200" ItemsSource="{x:Static vm:Choices.ChestDesignations}"
+                          SelectedValue="{Binding ChestDesignation}"
+                          SelectedValuePath="Value" DisplayMemberPath="Label"
+                          ToolTip="« Du premier au dernier » demande la grille relevée : deux clics, et toutes les cases entre les deux sont désignées en ordre de lecture — fin de ligne, puis début de la suivante." />
+              </StackPanel>
+
+              <WrapPanel>
                 <Button Content="{Binding DesignationLabel}" Command="{Binding ToggleDesignationCommand}"
                         MinWidth="200" Style="{StaticResource GoldButton}"
                         ToolTip="La macro traite les items à l'envers de l'ordre où vous les désignez. C'est voulu : quand une pile se vide, les items qui la suivaient remontent d'une case, et commencer par la fin met ce décalage derrière ce qu'il reste à faire." />
                 <Button Content="Effacer" Command="{Binding ClearChestPointsCommand}" MinWidth="100" />
               </WrapPanel>
 
-              <TextBlock Text="3. Construisez la macro" Style="{StaticResource SectionHeader}" />
+              <TextBlock Text="4. Construisez la macro" Style="{StaticResource SectionHeader}" />
               <StackPanel Orientation="Horizontal" Margin="0,0,0,8"
                           ToolTip="La part est calculée à la première lecture puis reprise pour les autres personnages : le coffre se vide à mesure que chacun se sert, et rediviser ce qu'il reste donnerait au deuxième un quart de ce que le premier a laissé. Une part de plus qu'il n'y a de personnages laisse une marge, si vous préférez qu'aucune pile ne se vide.">
                 <TextBlock Text="Diviser chaque pile en" VerticalAlignment="Center" Margin="0,0,6,0" />

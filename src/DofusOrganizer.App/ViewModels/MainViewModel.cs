@@ -45,13 +45,7 @@ public sealed class MainViewModel : ObservableObject
         // Même garantie que ci-dessus : le hook est posé depuis le fil d'interface, c'est donc
         // lui qui sert les rappels. La liste se remplit sous les yeux, ce qui est le seul moyen
         // de voir qu'un clic a bien été pris — puisque le jeu, lui, ne réagit pas.
-        _service.Designator.PointDesignated += point =>
-        {
-            _chestPoints.Add(point);
-            ChestPoints.Add(LabelFor(_chestPoints.Count - 1, point));
-            Status = $"Désigné : {ChestPoints[^1]}";
-            RefreshCommands();
-        };
+        _service.Designator.PointDesignated += OnPointDesignated;
 
         // Les commandes sont créées avant toute affectation de sélection : les
         // accesseurs de SelectedMacro et SelectedCharacter appellent RefreshCommands(),
@@ -87,6 +81,10 @@ public sealed class MainViewModel : ObservableObject
             move => move is DragReorder.Move m && CanReorderCharacters(m));
 
         ToggleDesignationCommand = new RelayCommand(ToggleDesignation);
+        CalibrateChestGridCommand = new RelayCommand(async () => await CalibrateChestGridAsync());
+        ForgetChestGridCommand = new RelayCommand(
+            () => { Settings.ChestGrid.Forget(); _service.Save(); Raise(nameof(ChestGridSummary)); RefreshCommands(); },
+            () => Settings.ChestGrid.IsCalibrated);
         ClearChestPointsCommand = new RelayCommand(ClearChestPoints, () => _chestPoints.Count > 0);
         BuildChestMacroCommand = new RelayCommand(
             BuildChestMacro, () => !_service.Designator.IsDesignating && _chestPoints.Count >= 3);
@@ -218,6 +216,8 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand ReorderStepsCommand { get; }
     public RelayCommand ReorderCharactersCommand { get; }
     public RelayCommand ToggleDesignationCommand { get; }
+    public RelayCommand CalibrateChestGridCommand { get; }
+    public RelayCommand ForgetChestGridCommand { get; }
     public RelayCommand ClearChestPointsCommand { get; }
     public RelayCommand BuildChestMacroCommand { get; }
     public RelayCommand RestoreDefaultDelaysCommand { get; }
@@ -425,6 +425,115 @@ public sealed class MainViewModel : ObservableObject
     /// nommer plutôt que de les numéroter évite la seule erreur qui ne se voit qu'en jeu —
     /// avoir désigné les items sans avoir désigné le coffre d'abord.
     /// </summary>
+    private ChestDesignation _chestDesignation = ChestDesignation.OneByOne;
+
+    /// <summary>
+    /// Comment les items sont désignés. La grille doit être calibrée pour que « du premier au
+    /// dernier » ait un sens : sans elle, rien ne dit où sont les cases intermédiaires.
+    /// </summary>
+    public ChestDesignation ChestDesignation
+    {
+        get => _chestDesignation;
+        set => Set(ref _chestDesignation, value);
+    }
+
+    public string ChestGridSummary
+    {
+        get
+        {
+            var grid = Settings.ChestGrid;
+            return grid.IsCalibrated
+                ? $"Grille relevée : {grid.Rows} × {grid.Columns} cases."
+                : "Grille non relevée — les clics ne seront pas recalés, et « du premier au dernier » est indisponible.";
+        }
+    }
+
+    /// <summary>
+    /// Relève les deux coins de la grille, l'un après l'autre.
+    ///
+    /// Deux points et les dimensions suffisent à la décrire exactement : le pas se déduit, sans
+    /// rien supposer sur la forme des cases ni sur les espacements.
+    /// </summary>
+    private async Task CalibrateChestGridAsync()
+    {
+        var topLeft = await CapturePointAsync("Cliquez le centre de la case en HAUT À GAUCHE du coffre.");
+        if (topLeft is null) return;
+
+        var bottomRight = await CapturePointAsync("Cliquez le centre de la case en BAS À DROITE du coffre.");
+        if (bottomRight is null) return;
+
+        Settings.ChestGrid.Calibrate(topLeft.Value, bottomRight.Value);
+        _service.Save();
+
+        Raise(nameof(ChestGridSummary));
+        RefreshCommands();
+
+        Status = Settings.ChestGrid.IsCalibrated
+            ? ChestGridSummary
+            : "Les deux points sont trop proches : recommencez sur des cases opposées.";
+    }
+
+    private async Task<NormalizedPoint?> CapturePointAsync(string prompt)
+    {
+        Status = prompt;
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            return await _service.CapturePointAsync(timeout.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            _service.CancelPointCapture();
+            Status = "Calibrage annulé.";
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Recueille un point désigné, recalé sur sa case quand la grille est connue.
+    ///
+    /// En mode « du premier au dernier », le deuxième item désigné referme la plage : toutes les
+    /// cases entre les deux sont ajoutées d'un coup, en ordre de lecture, et la désignation
+    /// s'arrête d'elle-même — il n'y a plus rien à cliquer.
+    /// </summary>
+    private void OnPointDesignated(NormalizedPoint point)
+    {
+        var grid = Settings.ChestGrid;
+        _chestPoints.Add(grid.IsCalibrated ? grid.Grid.Snap(point) : point);
+
+        // Les deux premiers points sont le coffre et la case d'arrivée, jamais des items.
+        bool closesRange = ChestDesignation == ChestDesignation.FirstToLast
+                           && grid.IsCalibrated
+                           && _chestPoints.Count == 4;
+
+        if (closesRange && grid.Grid.Range(_chestPoints[2], _chestPoints[3]) is { Count: > 0 } range)
+        {
+            _chestPoints.RemoveRange(2, 2);
+            _chestPoints.AddRange(range);
+
+            RefreshChestLabels();
+            _service.StopDesignating();
+            Raise(nameof(IsDesignating));
+            Raise(nameof(DesignationLabel));
+            Status = $"{range.Count} item(s) désigné(s) entre les deux clics.";
+            RefreshCommands();
+            return;
+        }
+
+        ChestPoints.Add(LabelFor(_chestPoints.Count - 1, _chestPoints[^1]));
+        Status = $"Désigné : {ChestPoints[^1]}";
+        RefreshCommands();
+    }
+
+    private void RefreshChestLabels()
+    {
+        ChestPoints.Clear();
+        for (int index = 0; index < _chestPoints.Count; index++)
+        {
+            ChestPoints.Add(LabelFor(index, _chestPoints[index]));
+        }
+    }
+
     private static string LabelFor(int index, NormalizedPoint point)
     {
         string role = index switch
@@ -801,3 +910,13 @@ public sealed class MainViewModel : ObservableObject
 }
 
 public enum StepKind { Clic, Glisser, Deplacement, Touche, Attente, Molette, Focus, PourChaquePersonnage, Repartition }
+
+/// <summary>Comment les items du coffre sont désignés à la souris.</summary>
+public enum ChestDesignation
+{
+    /// <summary>Un clic par item.</summary>
+    OneByOne,
+
+    /// <summary>Deux clics — le premier item et le dernier — et la grille remplit l'intervalle.</summary>
+    FirstToLast,
+}

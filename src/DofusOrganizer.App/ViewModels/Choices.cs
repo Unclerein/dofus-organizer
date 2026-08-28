@@ -50,6 +50,12 @@ public static class Choices
         new(StepKind.Repartition, "Répartir la quantité"),
     ];
 
+    public static IReadOnlyList<Choice<ChestDesignation>> ChestDesignations { get; } =
+    [
+        new(ChestDesignation.OneByOne, "Un par un"),
+        new(ChestDesignation.FirstToLast, "Du premier au dernier"),
+    ];
+
     public static IReadOnlyList<Choice<ScrollDirection>> ScrollDirections { get; } =
     [
         new(ScrollDirection.Down, "Vers le bas"),

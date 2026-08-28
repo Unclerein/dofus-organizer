@@ -161,6 +161,13 @@ public sealed class AppSettings : NotifyBase
     public List<SlowKey> SlowKeys { get; set; } = [];
 
     /// <summary>
+    /// La grille du coffre, relevée une fois et conservée : elle ne dépend que de la disposition
+    /// du panneau à l'écran. C'est elle qui permet de désigner une plage d'items en deux clics
+    /// au lieu d'un par item, et de ramener chaque clic au centre de sa case.
+    /// </summary>
+    public ChestGrid ChestGrid { get; set; } = new();
+
+    /// <summary>
     /// Écart entre deux clics d'un même geste — un double-clic, par exemple.
     ///
     /// Cette valeur tient dans la seule fenêtre où un double-clic existe. Trop courte, les deux

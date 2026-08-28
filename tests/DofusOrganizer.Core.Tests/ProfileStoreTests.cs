@@ -1,4 +1,5 @@
 using DofusOrganizer.Core.Config;
+using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Models;
 using DofusOrganizer.Core.Organizer;
 using Xunit;
@@ -50,8 +51,20 @@ public class ProfileStoreTests : IDisposable
             },
         };
 
+        profile.Settings.ChestGrid.Calibrate(new NormalizedPoint(0.11, 0.22), new NormalizedPoint(0.55, 0.66));
+        profile.Settings.ChestGrid.Rows = 9;
+        profile.Settings.ChestGrid.Columns = 5;
+
         store.Save(profile);
         var loaded = store.Load();
+
+        // Le calibrage du coffre survit au disque : le relever à chaque lancement serait
+        // exactement la corvée qu'il évite.
+        var grid = loaded.Settings.ChestGrid;
+        Assert.True(grid.IsCalibrated);
+        Assert.Equal(0.11, grid.TopLeftX, 9);
+        Assert.Equal(0.66, grid.BottomRightY, 9);
+        Assert.Equal(new NormalizedPoint(0.11, 0.22), grid.Grid.CenterOf(new Cell(0, 0)));
 
         Assert.Equal("Mon Iop", loaded.Characters[0].DisplayName);
         Assert.Equal(new Hotkey(VirtualKeys.F1), loaded.Characters[0].Hotkey);

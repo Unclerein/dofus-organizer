@@ -98,7 +98,9 @@ l'intérieur de la boucle, et une étape ajoutée se range juste après celle qu
 plutôt qu'à la fin.
 
 Les lignes se **déplacent aussi à la souris**, dans la liste d'étapes comme dans le tableau des
-personnages. Un trait marque l'endroit où la ligne va se poser — au-dessus de la cible quand on
+personnages. Approcher le curseur du haut ou du bas de la liste la fait défiler pendant le
+glisser — la molette, elle, ne répond pas : Windows capte l'entrée pour la durée de
+l'opération et ne lui route pas ses événements. Un trait marque l'endroit où la ligne va se poser — au-dessus de la cible quand on
 remonte, en dessous quand on descend. Pas de trait et un curseur d'interdiction : le dépôt
 serait refusé, inutile de lâcher.
 
@@ -187,13 +189,35 @@ vient prendre sa part. L'onglet **Coffre** fabrique la macro qui fait le tour.
 1. Le meneur dépose tout au coffre.
 2. Amenez les quatre personnages devant le coffre. Ils doivent tous pouvoir l'ouvrir sans se
    déplacer : la macro clique au même endroit sur chacun.
-3. **Désigner les points**, dans l'ordre : le coffre, puis la case où les items doivent
-   arriver dans votre inventaire, puis chaque item à répartir. Pendant la désignation vos clics
-   ne parviennent pas au jeu — aucune boîte de quantité ne s'ouvre. Cliquez **Terminer** dans
-   la fenêtre de l'organizer, ses propres clics passant normalement.
-4. Réglez **en combien de parts** découper chaque pile — quatre par défaut — puis **Construire
+3. **Relever la grille**, une fois pour toutes : deux clics, le centre de la case en haut à
+   gauche du coffre puis celui de la case en bas à droite. Avec les dimensions (9 lignes sur 5
+   colonnes pour un coffre de guilde) tout est déterminé — le pas se déduit, sans rien supposer
+   sur la forme des cases. Le relevé est conservé dans le profil ; à refaire seulement en cas de
+   changement de banque ou de taille de fenêtre.
+4. **Désigner les points**, dans l'ordre : le coffre, puis la case où les items doivent arriver
+   dans votre inventaire, puis les items. Pendant la désignation vos clics ne parviennent pas au
+   jeu — aucune boîte de quantité ne s'ouvre. Cliquez **Terminer** dans la fenêtre de
+   l'organizer, ses propres clics passant normalement.
+5. Réglez **en combien de parts** découper chaque pile — quatre par défaut — puis **Construire
    la macro**. Elle apparaît dans l'onglet Macros, modifiable comme les autres, et vous pouvez
    lui assigner une touche.
+
+### Désigner une plage d'items en deux clics
+
+Deux façons de désigner, au choix avant de commencer :
+
+- **Un par un** — un clic par item, ce qui marche toujours, même sur des items éparpillés.
+- **Du premier au dernier** — deux clics, et toutes les cases entre les deux sont désignées en
+  **ordre de lecture** : jusqu'au bout de la ligne, puis la suivante depuis son début. L'ordre
+  des deux clics ne compte pas. La désignation s'arrête d'elle-même, il n'y a plus rien à
+  cliquer.
+
+Le second mode demande la grille relevée : sans elle, rien ne dit où sont les cases
+intermédiaires.
+
+Une fois la grille relevée, **tout clic est ramené au centre de sa case**, y compris un par un.
+C'est un gain en soi : un clic près d'un bord partait tel quel dans la macro, et le glisser
+tombait de travers sur les personnages dont la fenêtre n'a pas exactement la même taille.
 
 ### Ce que fait la macro, et pourquoi comme ça
 
