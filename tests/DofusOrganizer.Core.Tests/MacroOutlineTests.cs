@@ -127,6 +127,23 @@ public class MacroOutlineTests
         Assert.False(MacroOutline.Reorder(steps, from, to));
     }
 
+    [Fact]
+    public void La_question_posee_pendant_le_survol_rend_la_meme_reponse_que_le_deplacement()
+    {
+        // C'est elle qui décide si le trait d'insertion se dessine. Une réponse différente de
+        // celle du déplacement montrerait un trait là où le dépôt sera refusé.
+        var loop = Boucle(new KeyStep());
+        var steps = Macro(new FocusStep(), loop);
+
+        Assert.True(MacroOutline.CanReorder(steps, from: 0, to: 1));    // deux étapes à la racine
+        Assert.False(MacroOutline.CanReorder(steps, from: 2, to: 0));   // traverse la boucle
+        Assert.False(MacroOutline.CanReorder(steps, from: 1, to: 1));   // sur place
+        Assert.False(MacroOutline.CanReorder(steps, from: 0, to: 99));  // hors liste
+
+        // Et la question ne déplace rien.
+        Assert.Equal([steps[0], loop], steps);
+    }
+
     // ---------------------------------------------------------------- Conteneur
 
     [Fact]

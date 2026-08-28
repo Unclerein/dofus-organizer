@@ -63,21 +63,45 @@ public static class MacroOutline
     /// </summary>
     public static bool Reorder(IList<MacroStep> steps, int from, int to)
     {
+        if (!TryResolve(steps, from, to, out var container, out int source, out int destination)) return false;
+
+        var moved = container[source];
+        container.RemoveAt(source);
+        container.Insert(destination, moved);
+        return true;
+    }
+
+    /// <summary>
+    /// Le déplacement aurait-il lieu ?
+    ///
+    /// Séparé de <see cref="Reorder"/> pour être posé pendant le survol : sans cette réponse,
+    /// un dépôt interdit ne se découvre qu'en lâchant, sur une liste qui ne bouge pas et sans
+    /// que rien n'explique pourquoi.
+    /// </summary>
+    public static bool CanReorder(IList<MacroStep> steps, int from, int to)
+        => TryResolve(steps, from, to, out _, out _, out _);
+
+    private static bool TryResolve(
+        IList<MacroStep> steps, int from, int to,
+        out IList<MacroStep> container, out int source, out int destination)
+    {
+        container = steps;
+        source = destination = -1;
+
         var rows = Flatten((IReadOnlyList<MacroStep>)steps);
         if (from < 0 || from >= rows.Count || to < 0 || to >= rows.Count || from == to) return false;
 
         var moved = rows[from].Step;
         var target = rows[to].Step;
 
-        var container = ContainerOf(steps, moved);
-        if (container is null || !ReferenceEquals(container, ContainerOf(steps, target))) return false;
+        var owner = ContainerOf(steps, moved);
+        if (owner is null || !ReferenceEquals(owner, ContainerOf(steps, target))) return false;
 
-        int source = container.IndexOf(moved);
-        int destination = container.IndexOf(target);
+        source = owner.IndexOf(moved);
+        destination = owner.IndexOf(target);
         if (source < 0 || destination < 0 || source == destination) return false;
 
-        container.RemoveAt(source);
-        container.Insert(destination, moved);
+        container = owner;
         return true;
     }
 }

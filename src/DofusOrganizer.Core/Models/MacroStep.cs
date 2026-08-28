@@ -303,8 +303,12 @@ public sealed class DistributeQuantityStep : MacroStep
     /// <summary>Le temps qu'une boîte de quantité met à s'ouvrir, sur un client ordinaire.</summary>
     public const int DefaultOpenDelayMs = 100;
 
+    /// <summary>Le temps que le jeu met à déplacer les items et à refermer la boîte.</summary>
+    public const int DefaultTransferDelayMs = 100;
+
     private int _divisor = DefaultDivisor;
     private int _openDelayMs = DefaultOpenDelayMs;
+    private int _transferDelayMs = DefaultTransferDelayMs;
 
     /// <summary>
     /// Par combien diviser la quantité lue.
@@ -338,6 +342,19 @@ public sealed class DistributeQuantityStep : MacroStep
     {
         get => _openDelayMs;
         set => Set(ref _openDelayMs, Math.Clamp(value, 0, 5000));
+    }
+
+    /// <summary>
+    /// Attente après la validation, le temps que le transfert soit enregistré.
+    ///
+    /// Le pendant de <see cref="OpenDelayMs"/>, à l'autre bout du geste : sans elle, la macro
+    /// attrape l'item suivant pendant que le jeu déplace encore le précédent, et le glisser
+    /// part dans une fenêtre qui n'est plus dans l'état attendu.
+    /// </summary>
+    public int TransferDelayMs
+    {
+        get => _transferDelayMs;
+        set => Set(ref _transferDelayMs, Math.Clamp(value, 0, 5000));
     }
 
     public override string Description => $"Répartir la quantité proposée (diviser par {Divisor})";

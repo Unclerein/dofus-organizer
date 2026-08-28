@@ -295,8 +295,11 @@
                         <TextBlock Text="Diviser par" VerticalAlignment="Center" Margin="0,0,6,0" />
                         <TextBox Text="{Binding Divisor, UpdateSourceTrigger=LostFocus}" Width="60" Margin="0,0,16,0" />
                         <TextBlock Text="Attendre l'ouverture (ms)" VerticalAlignment="Center" Margin="0,0,6,0" />
-                        <TextBox Text="{Binding OpenDelayMs, UpdateSourceTrigger=LostFocus}" Width="60"
+                        <TextBox Text="{Binding OpenDelayMs, UpdateSourceTrigger=LostFocus}" Width="60" Margin="0,0,16,0"
                                  ToolTip="Temps laissé à la boîte de quantité pour s'ouvrir avant de copier. Trop court, la copie ne rapporte rien et la macro s'arrête. À monter si un client est lent." />
+                        <TextBlock Text="Attendre le transfert (ms)" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBox Text="{Binding TransferDelayMs, UpdateSourceTrigger=LostFocus}" Width="60"
+                                 ToolTip="Temps laissé au jeu, après validation, pour déplacer les items et refermer la boîte. Trop court, l'item suivant est attrapé pendant que le précédent bouge encore." />
                       </StackPanel>
                       <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0">
                         La part est calculée à la première lecture et reprise pour les personnages

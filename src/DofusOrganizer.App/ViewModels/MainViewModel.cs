@@ -5,6 +5,7 @@ using DofusOrganizer.App.Services;
 using DofusOrganizer.App.Views;
 using DofusOrganizer.Core.Config;
 using DofusOrganizer.Core.Geometry;
+using DofusOrganizer.Core.Macros;
 using DofusOrganizer.Core.Models;
 
 namespace DofusOrganizer.App.ViewModels;
@@ -73,8 +74,17 @@ public sealed class MainViewModel : ObservableObject
         // Le glisser-déposer ne décide de rien : il dit « de cette ligne vers celle-là », et
         // c'est le modèle qui refuse ce qui n'a pas de sens — franchir la frontière d'une boucle,
         // par exemple.
-        ReorderStepsCommand = new RelayCommand(move => ReorderSteps(move as DragReorder.Move?));
-        ReorderCharactersCommand = new RelayCommand(move => ReorderCharacters(move as DragReorder.Move?));
+        // Le prédicat n'est pas décoratif : c'est lui que le glisser-déposer interroge pendant
+        // le survol pour décider s'il dessine le trait d'insertion. Sans lui, un dépôt interdit
+        // ne se découvrirait qu'en lâchant, devant une liste qui ne bouge pas.
+        ReorderStepsCommand = new RelayCommand(
+            move => ReorderSteps(move as DragReorder.Move?),
+            move => move is DragReorder.Move m && SelectedMacro is not null
+                    && MacroOutline.CanReorder(SelectedMacro.Steps, m.From, m.To));
+
+        ReorderCharactersCommand = new RelayCommand(
+            move => ReorderCharacters(move as DragReorder.Move?),
+            move => move is DragReorder.Move m && CanReorderCharacters(m));
 
         ToggleDesignationCommand = new RelayCommand(ToggleDesignation);
         ClearChestPointsCommand = new RelayCommand(ClearChestPoints, () => _chestPoints.Count > 0);
@@ -333,13 +343,16 @@ public sealed class MainViewModel : ObservableObject
     /// Réordonne les personnages, en passant par le même chemin que Monter et Descendre :
     /// l'ordre vit dans le profil, et c'est lui que suit la touche « personnage suivant ».
     /// </summary>
+    private bool CanReorderCharacters(DragReorder.Move move)
+        => move.From >= 0 && move.From < Characters.Count
+           && move.To >= 0 && move.To < Characters.Count
+           && move.From != move.To;
+
     private void ReorderCharacters(DragReorder.Move? move)
     {
-        if (move is not { } m) return;
+        if (move is not { } m || !CanReorderCharacters(m)) return;
 
         var rows = Characters;
-        if (m.From < 0 || m.From >= rows.Count || m.To < 0 || m.To >= rows.Count || m.From == m.To) return;
-
         _service.Roster.Move(rows[m.From].Slot, m.To - m.From, Profile.Characters);
         _service.Refresh();
         _service.Save();

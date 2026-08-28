@@ -51,6 +51,13 @@ public static class StepPacing
         // l'ouverture d'un panneau vient par-dessus ce que la séquence demandait déjà.
         KeyStep key => actionDelayMs + SlowKeys.ExtraDelayFor(key, settings.SlowKeys),
 
+        // Une répartition se termine sur une validation, après quoi le jeu déplace des items et
+        // referme une boîte. Attraper le suivant pendant ce temps fait partir le glisser dans
+        // une fenêtre qui n'est plus dans l'état attendu. Le supplément s'ajoute au délai
+        // courant plutôt que de le remplacer, comme pour une touche lente : il vient par-dessus
+        // ce que la séquence demandait déjà.
+        DistributeQuantityStep distribute => actionDelayMs + distribute.TransferDelayMs,
+
         _ => actionDelayMs,
     };
 }

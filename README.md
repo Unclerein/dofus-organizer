@@ -98,7 +98,11 @@ l'intérieur de la boucle, et une étape ajoutée se range juste après celle qu
 plutôt qu'à la fin.
 
 Les lignes se **déplacent aussi à la souris**, dans la liste d'étapes comme dans le tableau des
-personnages. Un glisser ne franchit jamais la frontière d'une boucle : en sortir changerait
+personnages. Un trait marque l'endroit où la ligne va se poser — au-dessus de la cible quand on
+remonte, en dessous quand on descend. Pas de trait et un curseur d'interdiction : le dépôt
+serait refusé, inutile de lâcher.
+
+Un glisser ne franchit jamais la frontière d'une boucle : en sortir changerait
 *quand* l'étape s'exécute — une fois au lieu d'une fois par personnage — et cela ne doit pas
 tenir à la précision d'un lâcher de souris. C'est la même règle que Monter et Descendre, qui
 s'arrêtent aux bornes de la boucle.
@@ -232,9 +236,16 @@ reste actif pendant tout le rejeu.
 Si les glissers partent dans le vide, c'est que le coffre n'était pas encore ouvert : montez
 l'attente qui suit le clic du coffre, visible comme une étape ordinaire dans l'éditeur.
 
-Si la macro s'arrête sur « aucune quantité copiée », c'est que la boîte de quantité n'était pas
-encore là au moment du copier : montez **« Attendre l'ouverture »** dans le panneau de l'étape
-de répartition. Cent millisecondes suffisent en général.
+Deux attentes encadrent chaque item, dans le panneau de l'étape de répartition, et ce sont les
+deux premières valeurs à monter sur un client lent :
+
+- **Attendre l'ouverture** — avant de copier, le temps que la boîte de quantité apparaisse. Trop
+  court, la copie ne rapporte rien et la macro s'arrête sur « aucune quantité copiée ».
+- **Attendre le transfert** — après validation, le temps que le jeu déplace les items et
+  referme la boîte. Trop court, l'item suivant est attrapé pendant que le précédent bouge
+  encore.
+
+Cent millisecondes chacune suffisent en général.
 
 ## Aligner un panneau identiquement sur tous les personnages
 

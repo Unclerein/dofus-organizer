@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -27,6 +28,10 @@ public static class DragReorder
     private static Point _origin;
     private static int _from = -1;
 
+    /// <summary>Le trait d'insertion affiché, et la couche qui le porte.</summary>
+    private static InsertionLine? _line;
+    private static AdornerLayer? _layer;
+
     public static readonly DependencyProperty CommandProperty = DependencyProperty.RegisterAttached(
         "Command", typeof(ICommand), typeof(DragReorder), new PropertyMetadata(null, OnCommandChanged));
 
@@ -40,6 +45,8 @@ public static class DragReorder
 
         items.PreviewMouseLeftButtonDown -= OnPress;
         items.PreviewMouseMove -= OnMove;
+        items.DragOver -= OnDragOver;
+        items.DragLeave -= OnDragLeave;
         items.Drop -= OnDrop;
 
         if (e.NewValue is null) return;
@@ -47,6 +54,8 @@ public static class DragReorder
         items.AllowDrop = true;
         items.PreviewMouseLeftButtonDown += OnPress;
         items.PreviewMouseMove += OnMove;
+        items.DragOver += OnDragOver;
+        items.DragLeave += OnDragLeave;
         items.Drop += OnDrop;
     }
 
@@ -80,12 +89,70 @@ public static class DragReorder
 
         int from = _from;
         _from = -1;
-        DragDrop.DoDragDrop(items, new DataObject(Format, from), DragDropEffects.Move);
+
+        // Appel bloquant : il ne rend la main qu'une fois le glisser terminé, abandon par Échap
+        // compris. C'est donc le seul endroit sûr pour effacer le trait — une annulation ou un
+        // lâcher hors du contrôle ne passent par aucun autre gestionnaire.
+        try
+        {
+            DragDrop.DoDragDrop(items, new DataObject(Format, from), DragDropEffects.Move);
+        }
+        finally
+        {
+            HideLine();
+        }
+    }
+
+    /// <summary>
+    /// Déplace le trait sous le curseur, ou l'efface si le dépôt serait refusé.
+    ///
+    /// De quel côté : le réordonnancement retire puis réinsère à l'index de la cible, ce qui
+    /// fait passer l'élément <b>après</b> elle quand on descend et <b>avant</b> quand on monte.
+    /// Le trait ne fait que dire cette vérité-là.
+    ///
+    /// La légalité est demandée à la commande elle-même, qui sait déjà refuser un dépôt
+    /// franchissant la frontière d'une boucle. L'interroger pendant le survol évite que
+    /// l'utilisateur ne l'apprenne qu'en lâchant, devant une liste qui ne bouge pas.
+    /// </summary>
+    private static void OnDragOver(object sender, DragEventArgs e)
+    {
+        if (sender is not ItemsControl items || !e.Data.GetDataPresent(Format)) return;
+
+        HideLine();
+        e.Effects = DragDropEffects.None;
+        e.Handled = true;
+
+        int target = IndexAt(items, e.GetPosition(items));
+        if (target < 0 || e.Data.GetData(Format) is not int source) return;
+
+        var move = new Move(source, target);
+        if (GetCommand(items) is not { } command || !command.CanExecute(move)) return;
+
+        e.Effects = DragDropEffects.Move;
+
+        if (items.ItemContainerGenerator.ContainerFromIndex(target) is not UIElement row) return;
+
+        _layer = AdornerLayer.GetAdornerLayer(row);
+        if (_layer is null) return;
+
+        _line = new InsertionLine(row, below: target > source);
+        _layer.Add(_line);
+    }
+
+    private static void OnDragLeave(object sender, DragEventArgs e) => HideLine();
+
+    private static void HideLine()
+    {
+        if (_line is not null) _layer?.Remove(_line);
+        _line = null;
+        _layer = null;
     }
 
     private static void OnDrop(object sender, DragEventArgs e)
     {
         if (sender is not ItemsControl items || !e.Data.GetDataPresent(Format)) return;
+
+        HideLine();
 
         int to = IndexAt(items, e.GetPosition(items));
         if (to < 0 || e.Data.GetData(Format) is not int from) return;

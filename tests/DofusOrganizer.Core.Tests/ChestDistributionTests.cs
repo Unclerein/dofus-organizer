@@ -153,6 +153,23 @@ public class ChestDistributionTests
         Assert.Contains(actions, a => a is RecordedAction.Key(VirtualKeys.Escape, KeyModifiers.None, _));
     }
 
+    [Fact]
+    public async Task Le_jeu_a_le_temps_d_enregistrer_le_transfert_avant_l_item_suivant()
+    {
+        // Sans cette pause, la macro attrape l'item suivant pendant que le jeu déplace encore
+        // le précédent, et le glisser part dans une fenêtre qui n'est plus dans l'état attendu.
+        var (windows, roster, profile) = MacroHarness.BuildTeam("Un");
+        var clipboard = new FakeClipboard { AnswerOnCopy = "100" };
+
+        var actions = await MacroHarness.RunAsync(
+            RepartitionDe(new DistributeQuantityStep { Divisor = 4, OpenDelayMs = 90, TransferDelayMs = 120 },
+                          new DelayStep { Milliseconds = 1 }),
+            windows, roster, profile, clipboard: clipboard);
+
+        Assert.Contains(actions, a => a is RecordedAction.Delay(90));    // avant de copier
+        Assert.Contains(actions, a => a is RecordedAction.Delay(120));   // après avoir validé
+    }
+
     // ---------------------------------------------------------------- La construction
 
     [Fact]
