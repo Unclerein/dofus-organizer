@@ -192,7 +192,8 @@ vient prendre sa part. L'onglet **Coffre** fabrique la macro qui fait le tour.
 3. **Relever la grille**, une fois pour toutes : deux clics, le centre de la case en haut à
    gauche du coffre puis celui de la case en bas à droite. Avec les dimensions (9 lignes sur 5
    colonnes pour un coffre de guilde) tout est déterminé — le pas se déduit, sans rien supposer
-   sur la forme des cases. Le relevé est conservé dans le profil ; à refaire seulement en cas de
+   sur la forme des cases. Vous avez une minute pour chaque clic, le temps de passer sur le jeu
+   et d'ouvrir le coffre. Le relevé est conservé dans le profil ; à refaire seulement en cas de
    changement de banque ou de taille de fenêtre.
 4. **Désigner les points**, dans l'ordre : le coffre, puis la case où les items doivent arriver
    dans votre inventaire, puis les items. Pendant la désignation vos clics ne parviennent pas au

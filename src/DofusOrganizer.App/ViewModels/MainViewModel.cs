@@ -478,7 +478,9 @@ public sealed class MainViewModel : ObservableObject
         Status = prompt;
         try
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            // Large, parce que le premier des deux points demande de passer sur le jeu et
+            // d'ouvrir le coffre. Le second suit dans la foulée, mais il hérite du même délai.
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             return await _service.CapturePointAsync(timeout.Token);
         }
         catch (OperationCanceledException)

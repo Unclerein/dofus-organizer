@@ -1,5 +1,6 @@
 using DofusOrganizer.Core.Abstractions;
 using DofusOrganizer.Core.Geometry;
+using DofusOrganizer.Core.Input;
 using DofusOrganizer.Core.Models;
 using DofusOrganizer.Windows.Hooks;
 
@@ -27,16 +28,11 @@ public sealed class PointDesignator(IWindowManager windows, Func<nint, int> slot
 {
     private readonly MouseHook _mouse = new();
     private readonly List<NormalizedPoint> _points = [];
+    private readonly DesignationSequencer _sequencer = new();
 
     private TaskCompletionSource<NormalizedPoint>? _capture;
 
-    private bool _designating;
-    private bool _swallowedPress;
-
-    /// <summary>Vrai pendant une capture à l'unité, qui se referme d'elle-même.</summary>
-    private bool _singleShot;
-
-    public bool IsDesignating => _designating;
+    public bool IsDesignating => _sequencer.IsDesignating;
 
     public IReadOnlyList<NormalizedPoint> Points => _points;
 
@@ -45,24 +41,41 @@ public sealed class PointDesignator(IWindowManager windows, Func<nint, int> slot
 
     public void Start()
     {
-        if (_designating) return;
+        if (_sequencer.IsDesignating) return;
 
         _points.Clear();
-        _swallowedPress = false;
-        _designating = true;
-        _singleShot = false;
-
-        _mouse.MouseEventReceived = OnMouse;
-        _mouse.Install();
+        Open(singleShot: false);
     }
 
     public IReadOnlyList<NormalizedPoint> Stop()
     {
-        _designating = false;
-        _singleShot = false;
+        _sequencer.Close();
+
+        // Une capture encore en attente est rompue plutôt qu'abandonnée : la laisser pendre
+        // ferait patienter son demandeur jusqu'à l'expiration du délai, hook déjà retiré, sans
+        // que rien ne puisse plus la servir.
+        var capture = _capture;
         _capture = null;
+        capture?.TrySetCanceled();
+
         _mouse.Uninstall();
         return _points.ToList();
+    }
+
+    /// <summary>
+    /// Ouvre la désignation, ou se greffe sur celle qui court déjà.
+    ///
+    /// Reposer le hook alors qu'il est déjà en place le laisserait installé deux fois : le
+    /// séquenceur sait dire si la désignation était déjà ouverte, et c'est lui qui tranche.
+    /// </summary>
+    private void Open(bool singleShot)
+    {
+        bool wasOpen = _sequencer.IsDesignating;
+        _sequencer.Open(singleShot);
+        if (wasOpen) return;
+
+        _mouse.MouseEventReceived = OnMouse;
+        _mouse.Install();
     }
 
     /// <summary>
@@ -78,22 +91,23 @@ public sealed class PointDesignator(IWindowManager windows, Func<nint, int> slot
         var capture = new TaskCompletionSource<NormalizedPoint>(TaskCreationOptions.RunContinuationsAsynchronously);
         cancellationToken.Register(() => capture.TrySetCanceled());
 
-        Start();
+        // La capture est posée avant d'ouvrir : le premier clic peut arriver aussitôt le hook
+        // installé, et il ne doit pas trouver la place vide.
         _capture = capture;
-        _singleShot = true;
+        Open(singleShot: true);
         return capture.Task;
     }
 
     /// <summary>Interrompt une capture en cours, sans rien rendre.</summary>
     public void CancelCapture()
     {
-        _capture?.TrySetCanceled();
-        if (_designating) Stop();
+        // Refermer rompt la promesse en attente : il n'y a rien de plus à faire ici.
+        if (_sequencer.IsDesignating) Stop();
     }
 
     private bool OnMouse(MouseEvent e)
     {
-        if (!_designating || e.IsInjected) return false;
+        if (!_sequencer.IsDesignating || e.IsInjected) return false;
 
         // Seul le clic gauche désigne. Le reste passe : il faut pouvoir faire tourner la
         // molette pour atteindre un item plus bas dans le coffre.
@@ -101,42 +115,50 @@ public sealed class PointDesignator(IWindowManager windows, Func<nint, int> slot
 
         if (!e.IsDown)
         {
-            // Le relâchement suit le sort de son appui. Avaler l'un sans l'autre laisserait
-            // le jeu croire à un bouton resté enfoncé.
-            bool swallow = _swallowedPress;
-            _swallowedPress = false;
+            // Le hook reste posé le temps d'avaler le relâchement qui suit un appui pris : le
+            // retirer plus tôt laisserait le jeu recevoir un bouton relâché qu'il n'a jamais
+            // vu s'enfoncer. Une capture posée entre-temps — le calibrage en enchaîne deux —
+            // garde la désignation ouverte, et c'est le séquenceur qui le sait.
+            var release = _sequencer.OnRelease(captureAwaiting: _capture is not null);
+            if (release is DesignationVerdict.SwallowAndClose) Stop();
 
-            // Une capture à l'unité a été servie à l'appui : le relâchement avalé, il n'y a
-            // plus rien à écouter.
-            if (swallow && _singleShot) Stop();
-
-            return swallow;
+            return release is not DesignationVerdict.LetThrough;
         }
 
-        // La fenêtre sous le curseur, et non celle au premier plan : le hook se déclenche
-        // avant que le focus ne change, donc cliquer sur un client pour l'activer rapporterait
-        // le point aux dimensions du client précédent.
-        nint target = windows.WindowUnder(e.Point);
-        if (slotIndexOf(target) < 0) return false;
-        if (!windows.TryGetClientBounds(target, out var bounds) || bounds.IsEmpty) return false;
+        var point = Locate(e.Point);
+        if (_sequencer.OnPress(onTarget: point is not null) is DesignationVerdict.LetThrough) return false;
 
-        var point = CoordinateMapper.ToNormalized(e.Point, bounds);
-        _swallowedPress = true;
-
-        // Une capture à l'unité se dénoue ici et rend la main. Le hook reste posé le temps
-        // d'avaler le relâchement qui suit : le retirer maintenant laisserait le jeu recevoir
-        // un bouton relâché qu'il n'a jamais vu s'enfoncer.
+        // Une capture à l'unité se dénoue ici et rend la main à son demandeur, qui reprend
+        // aussitôt : d'où la possibilité qu'une seconde capture soit posée avant même que le
+        // bouton ne soit relâché.
         var capture = _capture;
         if (capture is not null)
         {
             _capture = null;
-            capture.TrySetResult(point);
+            capture.TrySetResult(point!.Value);
             return true;
         }
 
-        _points.Add(point);
-        PointDesignated?.Invoke(point);
+        _points.Add(point!.Value);
+        PointDesignated?.Invoke(point.Value);
         return true;
+    }
+
+    /// <summary>
+    /// Ramène un point d'écran aux proportions de la fenêtre cliquée, ou rien si ce n'est pas
+    /// une fenêtre suivie.
+    ///
+    /// La fenêtre sous le curseur, et non celle au premier plan : le hook se déclenche avant que
+    /// le focus ne change, donc cliquer sur un client pour l'activer rapporterait le point aux
+    /// dimensions du client précédent.
+    /// </summary>
+    private NormalizedPoint? Locate(ScreenPoint screen)
+    {
+        nint target = windows.WindowUnder(screen);
+        if (slotIndexOf(target) < 0) return null;
+        if (!windows.TryGetClientBounds(target, out var bounds) || bounds.IsEmpty) return null;
+
+        return CoordinateMapper.ToNormalized(screen, bounds);
     }
 
     public void Dispose() => _mouse.Dispose();
