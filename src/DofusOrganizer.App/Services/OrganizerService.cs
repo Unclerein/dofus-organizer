@@ -368,11 +368,11 @@ public sealed class OrganizerService : IDisposable, ILogSink
     ///
     /// Les deux premiers points ne sont pas des items : le coffre, puis la case d'arrivée.
     /// </summary>
-    public Macro? BuildChestDistribution(IReadOnlyList<NormalizedPoint> points)
+    public Macro? BuildChestDistribution(IReadOnlyList<NormalizedPoint> points, int divisor)
     {
         if (points.Count < 3) return null;
 
-        var macro = ChestDistribution.BuildMacro(points[0], points[1], [.. points.Skip(2)]);
+        var macro = ChestDistribution.BuildMacro(points[0], points[1], [.. points.Skip(2)], divisor);
         return StoreNamedMacro(macro);
     }
 

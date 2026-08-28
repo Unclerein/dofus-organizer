@@ -25,7 +25,14 @@ public static class ChestDistribution
     /// <param name="chest">Le coffre, tel qu'on le clique à la banque. Sa place change d'une banque à l'autre.</param>
     /// <param name="drop">La case d'arrivée, dans l'onglet d'inventaire du personnage.</param>
     /// <param name="items">Les items à répartir, dans l'ordre où ils ont été désignés.</param>
-    public static Macro BuildMacro(NormalizedPoint chest, NormalizedPoint drop, IReadOnlyList<NormalizedPoint> items)
+    /// <param name="divisor">
+    /// En combien de parts découper chaque pile. Le même nombre pour tous les personnages, posé
+    /// sur chaque étape : la construction les règle ensemble, et rien n'empêche ensuite d'en
+    /// changer une seule dans l'éditeur.
+    /// </param>
+    public static Macro BuildMacro(
+        NormalizedPoint chest, NormalizedPoint drop, IReadOnlyList<NormalizedPoint> items,
+        int divisor = DistributeQuantityStep.DefaultDivisor)
     {
         var loop = new ForEachCharacterStep { SkipCurrentWindow = false };
 
@@ -45,7 +52,7 @@ public static class ChestDistribution
                 ToFx = drop.Fx,
                 ToFy = drop.Fy,
             });
-            loop.Steps.Add(new DistributeQuantityStep());
+            loop.Steps.Add(new DistributeQuantityStep { Divisor = divisor });
         }
 
         loop.Steps.Add(new KeyStep { VirtualKey = VirtualKeys.Escape });

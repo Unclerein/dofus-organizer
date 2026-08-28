@@ -188,6 +188,16 @@ public sealed class MacroRunner(
     /// <summary>
     /// Lit la quantité proposée par le jeu, la divise, et pose le résultat à sa place.
     ///
+    /// La part n'est calculée qu'une fois, à la première rencontre de cette étape, puis reprise
+    /// telle quelle aux tours suivants. C'est ce qui rend la répartition égale : le coffre se
+    /// vide à mesure que chacun se sert, et rediviser le stock restant donnerait au deuxième un
+    /// quart de ce que le premier a laissé — cent items donneraient 25, puis 18, puis 12, puis
+    /// 6, avec un tiers du stock abandonné au coffre.
+    ///
+    /// La lecture, elle, a bien lieu à chaque fois : elle sert de garde-fou. Si le stock est
+    /// tombé plus bas que la part mémorisée, on prend ce qu'il reste plutôt que d'en réclamer
+    /// davantage.
+    ///
     /// Tout le soin est dans ce qui précède la lecture. Si la boîte de saisie ne s'est pas
     /// ouverte, le Ctrl+C ne copie rien — et le presse-papiers garderait son contenu précédent,
     /// que l'étape prendrait pour la réponse du jeu. Elle taperait alors un nombre venu
@@ -206,14 +216,6 @@ public sealed class MacroRunner(
                 "Répartir une quantité demande le presse-papiers, dont ce moteur ne dispose pas.");
         }
 
-        int divisor = step.Divisor > 0 ? step.Divisor : state.RemainingTargets;
-        if (divisor <= 0)
-        {
-            throw new InvalidOperationException(
-                "« Répartir la quantité » divise par le nombre de personnages restants : "
-                + "l'étape doit vivre dans une boucle « pour chaque personnage », ou porter un diviseur.");
-        }
-
         clipboard.Clear();
         input.SendKey(VirtualKeys.C, KeyModifiers.Control, KeyAction.Press, settings.UseScanCodes);
 
@@ -225,17 +227,24 @@ public sealed class MacroRunner(
                 : $"« {copied} » n'est pas une quantité.");
         }
 
-        int share = QuantitySplit.Share(stock, divisor);
+        if (!state.Shares.TryGetValue(step, out int share))
+        {
+            share = QuantitySplit.Share(stock, step.Divisor);
+            state.Shares[step] = share;
+            _log.Log($"{stock} à diviser par {step.Divisor} : {share} par personnage.");
+        }
+
+        // Jamais plus que ce qui est là : un diviseur plus petit que l'équipe, ou une macro
+        // relancée sur un coffre déjà entamé, laisseraient sinon réclamer l'impossible.
+        share = Math.Min(share, stock);
+
         if (share <= 0)
         {
-            // Taper zéro ferait n'importe quoi selon le jeu. On referme et on passe : il reste
-            // moins d'items que de personnages à servir, ceux d'après se les partageront.
-            _log.Log($"{stock} pour {divisor} personnage(s) : part nulle, item sauté.");
+            // Taper zéro ferait n'importe quoi selon le jeu : on referme et on passe.
+            _log.Log($"Plus rien à prendre pour cet item, sauté.");
             input.SendKey(VirtualKeys.Escape, KeyModifiers.None, KeyAction.Press, settings.UseScanCodes);
             return;
         }
-
-        _log.Log($"{stock} à répartir sur {divisor} : {share}.");
         clipboard.SetText(share.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
         // Sélectionner avant de coller : le champ arrive avec son contenu déjà sélectionné,
@@ -272,37 +281,22 @@ public sealed class MacroRunner(
         // La liste est figée à l'entrée de la boucle : un client fermé en cours de route
         // ne doit pas décaler les personnages restants.
         var targets = roster.ActiveEntries;
-        try
+        foreach (var entry in targets)
         {
-            for (int i = 0; i < targets.Count; i++)
+            ct.ThrowIfCancellationRequested();
+            if (entry.Window is null) continue;
+            if (loop.SkipCurrentWindow && entry.Window.Handle == state.InitialWindow) continue;
+
+            _log.Log($"→ {entry.Slot.DisplayName}");
+            await FocusAsync(entry, settings, state, ct).ConfigureAwait(false);
+            if (state.CurrentTarget != entry.Window.Handle)
             {
-                var entry = targets[i];
-                ct.ThrowIfCancellationRequested();
-                if (entry.Window is null) continue;
-                if (loop.SkipCurrentWindow && entry.Window.Handle == state.InitialWindow) continue;
-
-                // Ce que « Répartir la quantité » divise. Un personnage sauté juste après
-                // décale ce compte de lui-même : le suivant prendra une part plus grosse,
-                // ce qui vaut mieux que des items abandonnés au coffre.
-                state.RemainingTargets = targets.Count - i;
-
-                _log.Log($"→ {entry.Slot.DisplayName}");
-                await FocusAsync(entry, settings, state, ct).ConfigureAwait(false);
-                if (state.CurrentTarget != entry.Window.Handle)
-                {
-                    // Sans le focus, les clics partiraient sur la fenêtre précédente.
-                    _log.Log($"Impossible d'activer « {entry.Slot.DisplayName} », personnage ignoré.");
-                    continue;
-                }
-
-                await ExecuteAsync(loop.Steps, roster, settings, state, ct).ConfigureAwait(false);
+                // Sans le focus, les clics partiraient sur la fenêtre précédente.
+                _log.Log($"Impossible d'activer « {entry.Slot.DisplayName} », personnage ignoré.");
+                continue;
             }
-        }
-        finally
-        {
-            // Hors boucle, il n'y a personne à servir : une étape de répartition qui s'y
-            // trouverait doit échouer franchement plutôt que diviser par un reste oublié.
-            state.RemainingTargets = 0;
+
+            await ExecuteAsync(loop.Steps, roster, settings, state, ct).ConfigureAwait(false);
         }
     }
 
@@ -414,9 +408,12 @@ public sealed class MacroRunner(
         public int StepsExecuted { get; set; }
 
         /// <summary>
-        /// Personnages qu'il reste à servir dans la boucle en cours, celui du tour compris.
-        /// Zéro hors d'une boucle.
+        /// Part calculée pour chaque étape de répartition, le temps de cette exécution.
+        ///
+        /// Rangée par étape, et l'étape est le même objet à chaque tour de boucle : c'est
+        /// exactement la clé voulue, sans avoir à en inventer une. Elle disparaît avec
+        /// l'exécution — deux lancements successifs relisent chacun le coffre.
         /// </summary>
-        public int RemainingTargets { get; set; }
+        public Dictionary<MacroStep, int> Shares { get; } = [];
     }
 }

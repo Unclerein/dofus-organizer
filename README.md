@@ -162,19 +162,26 @@ vient prendre sa part. L'onglet **Coffre** fabrique la macro qui fait le tour.
    arriver dans votre inventaire, puis chaque item à répartir. Pendant la désignation vos clics
    ne parviennent pas au jeu — aucune boîte de quantité ne s'ouvre. Cliquez **Terminer** dans
    la fenêtre de l'organizer, ses propres clics passant normalement.
-4. **Construire la macro**. Elle apparaît dans l'onglet Macros, modifiable comme les autres, et
-   vous pouvez lui assigner une touche.
+4. Réglez **en combien de parts** découper chaque pile — quatre par défaut — puis **Construire
+   la macro**. Elle apparaît dans l'onglet Macros, modifiable comme les autres, et vous pouvez
+   lui assigner une touche.
 
 ### Ce que fait la macro, et pourquoi comme ça
 
 Elle ne connaît pas les quantités : elle les lit. Chaque item glissé ouvre la boîte de saisie
 que le jeu remplit du stock disponible ; la macro la copie, divise, et colle le résultat.
 
-**Elle divise par le nombre de personnages qu'il reste à servir**, et non par l'effectif de
-départ. Cent items sur quatre : le premier prend 100/4, le deuxième relit 75 et prend 75/3, et
-ainsi de suite — chacun repart avec vingt-cinq. Quand la division ne tombe pas juste, dix items
-donnent 2, 2, 3, 3 : dix distribués, rien d'oublié au coffre, là où un quart figé aurait donné
-2, 2, 2, 2 et laissé deux items derrière.
+**Elle calcule la part une fois et la reprend pour les autres personnages.** Le coffre se vide
+à mesure que chacun se sert : rediviser ce qu'il reste à chaque tour donnerait au deuxième un
+quart de ce que le premier a laissé, et cent items donneraient 25, puis 18, puis 12, puis 6,
+avec un tiers du stock abandonné. La part est donc arrêtée à la première lecture — mais la
+lecture, elle, a lieu à chaque fois, en garde-fou : si le stock est tombé plus bas que la part
+prévue, on prend ce qu'il reste plutôt que d'en réclamer davantage.
+
+Ce qui ne tombe pas juste reste au coffre : dix items en quatre parts font deux chacun et deux
+oubliés. Mettre **une part de plus qu'il n'y a de personnages** laisse une marge, si vous
+préférez qu'aucune pile ne se vide complètement — quand une pile disparaît, les items qui la
+suivaient remontent d'une case.
 
 **Elle traite les items du dernier désigné au premier.** Quand une pile se vide, les items qui
 la suivaient remontent d'une case et les points désignés après elle tombent à côté. En partant

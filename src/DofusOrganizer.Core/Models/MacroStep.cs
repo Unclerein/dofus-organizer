@@ -297,26 +297,28 @@ public sealed class DelayStep : MacroStep
 /// </summary>
 public sealed class DistributeQuantityStep : MacroStep
 {
-    private int _divisor;
+    /// <summary>Un par personnage d'une équipe ordinaire.</summary>
+    public const int DefaultDivisor = 4;
+
+    private int _divisor = DefaultDivisor;
 
     /// <summary>
-    /// Par combien diviser la quantité lue. Zéro veut dire « par le nombre de personnages qu'il
-    /// reste à servir dans la boucle, celui du tour compris ».
+    /// Par combien diviser la quantité lue.
     ///
-    /// Ce défaut vaut mieux qu'une part figée calculée au premier personnage. Cent items sur
-    /// quatre : le premier prend 100/4, le deuxième relit 75 et prend 75/3, et ainsi de suite —
-    /// chacun repart avec vingt-cinq. Et quand la division ne tombe pas juste, dix items
-    /// donnent 2, 2, 3, 3 au lieu de 2, 2, 2, 2 avec deux items abandonnés au coffre.
+    /// Le même nombre pour tous les personnages : ce que le premier prend, le dernier le prend
+    /// aussi. La division étant entière, ce qui ne tombe pas juste reste au coffre — un ou deux
+    /// items oubliés valent mieux qu'un nombre qui change d'un personnage à l'autre sans être
+    /// écrit nulle part.
+    ///
+    /// Jamais zéro : diviser par rien n'est pas une intention exprimable.
     /// </summary>
     public int Divisor
     {
         get => _divisor;
-        set { if (Set(ref _divisor, Math.Max(0, value))) RaiseDescription(); }
+        set { if (Set(ref _divisor, Math.Max(1, value))) RaiseDescription(); }
     }
 
-    public override string Description => Divisor > 0
-        ? $"Répartir la quantité proposée (diviser par {Divisor})"
-        : "Répartir la quantité proposée (par personnage restant)";
+    public override string Description => $"Répartir la quantité proposée (diviser par {Divisor})";
 }
 
 public enum ScrollDirection { Up, Down }

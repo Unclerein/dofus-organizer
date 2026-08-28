@@ -352,6 +352,18 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Les points désignés, sous une forme lisible : leur rôle, puis leur position.</summary>
     public ObservableCollection<string> ChestPoints { get; } = [];
 
+    private int _chestDivisor = DistributeQuantityStep.DefaultDivisor;
+
+    /// <summary>
+    /// En combien de parts découper chaque pile. Posé sur toutes les étapes de la macro
+    /// construite, et modifiable ensuite une par une dans l'éditeur.
+    /// </summary>
+    public int ChestDivisor
+    {
+        get => _chestDivisor;
+        set => Set(ref _chestDivisor, Math.Max(1, value));
+    }
+
     public bool IsDesignating => _service.Designator.IsDesignating;
 
     public string DesignationLabel => IsDesignating ? "Terminer la désignation" : "Désigner les points";
@@ -402,7 +414,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void BuildChestMacro()
     {
-        var macro = _service.BuildChestDistribution(_chestPoints);
+        var macro = _service.BuildChestDistribution(_chestPoints, ChestDivisor);
         if (macro is null) return;
 
         SyncMacros();

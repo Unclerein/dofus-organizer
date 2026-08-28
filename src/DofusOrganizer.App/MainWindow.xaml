@@ -264,9 +264,9 @@
                         <TextBox Text="{Binding Divisor, UpdateSourceTrigger=LostFocus}" Width="60" />
                       </StackPanel>
                       <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0">
-                        Zéro, la valeur habituelle, veut dire « par le nombre de personnages qu'il reste à
-                        servir dans la boucle ». C'est ce qui fait que cent items donnent vingt-cinq à
-                        chacun, et que dix items donnent 2, 2, 3, 3 sans rien laisser derrière.
+                        La part est calculée à la première lecture et reprise pour les personnages
+                        suivants, pour que tous prennent la même chose alors que le coffre se vide.
+                        Ce qui ne tombe pas juste y reste.
                       </TextBlock>
                     </StackPanel>
                   </DataTemplate>
@@ -315,10 +315,9 @@
             <TextBlock Text="Répartir le coffre sur l'équipe" Style="{StaticResource SectionHeader}" Margin="0,0,0,6" />
             <TextBlock Style="{StaticResource Hint}">
               Le meneur dépose tout au coffre, puis chaque personnage vient prendre sa part.
-              La macro lit la quantité que le jeu propose, la divise par le nombre de personnages
-              qu'il reste à servir, et pose le résultat. Cent items sur quatre : chacun repart
-              avec vingt-cinq, et ce qui ne tombe pas juste va aux derniers plutôt que de rester
-              au coffre.
+              La macro lit la quantité que le jeu propose, la divise, et pose le résultat.
+              Cent items en quatre parts : chacun repart avec vingt-cinq. Ce qui ne tombe pas
+              juste reste au coffre.
             </TextBlock>
 
             <TextBlock Text="1. Placez tous les personnages devant le coffre" Style="{StaticResource SectionHeader}" />
@@ -347,10 +346,22 @@
             </WrapPanel>
 
             <TextBlock Text="3. Construisez la macro" Style="{StaticResource SectionHeader}" />
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+              <TextBlock Text="Diviser chaque pile en" VerticalAlignment="Center" Margin="0,0,6,0" />
+              <TextBox Text="{Binding ChestDivisor, UpdateSourceTrigger=LostFocus}" Width="50" />
+              <TextBlock Text="parts" VerticalAlignment="Center" Margin="6,0,0,0" />
+            </StackPanel>
             <TextBlock Style="{StaticResource Hint}">
-              Elle apparaît dans l'onglet Macros, modifiable comme les autres, et vous pouvez lui
-              assigner une touche. Surveillez le premier passage : ce que la macro donne, le jeu
-              ne le rend pas.
+              La part est calculée à la première lecture, puis reprise pour les autres
+              personnages : le coffre se vide à mesure que chacun se sert, et rediviser ce qu'il
+              reste donnerait au deuxième un quart de ce que le premier a laissé.
+              Mettre une part de plus qu'il n'y a de personnages laisse une marge au coffre, si
+              vous préférez qu'aucune pile ne se vide complètement.
+            </TextBlock>
+            <TextBlock Style="{StaticResource Hint}">
+              La macro apparaît dans l'onglet Macros, modifiable comme les autres, et vous pouvez
+              lui assigner une touche. Surveillez le premier passage : ce que la macro donne, le
+              jeu ne le rend pas.
             </TextBlock>
             <Button Content="Construire la macro" Command="{Binding BuildChestMacroCommand}"
                     MinWidth="200" HorizontalAlignment="Left" Margin="0,4,0,0" />

@@ -47,22 +47,18 @@ public static class QuantitySplit
     private static bool IsSeparator(char c) => c is ' ' or ' ' or ' ' or ' ' or '\'' or '\t';
 
     /// <summary>
-    /// Part à prendre, sachant ce qui reste en stock et combien de personnages restent à servir,
-    /// celui du tour compris.
+    /// Part à prendre dans un stock, pour un nombre de parts donné.
     ///
-    /// Diviser par ce qui reste plutôt que par l'effectif de départ paraît un détail et n'en est
-    /// pas un. Un quart figé de dix donne 2, 2, 2, 2 et abandonne deux items au coffre ; la
-    /// division par ce qui reste donne 2, puis 8/3 = 2, puis 6/2 = 3, puis 3/1 = 3 — dix
-    /// distribués, rien d'oublié. Et comme chaque tour relit le stock réel, un personnage sauté
-    /// ou une part mal tapée se rattrapent d'eux-mêmes au tour suivant, au lieu de propager
-    /// l'erreur.
+    /// Division entière, et le reste demeure au coffre : dix items en quatre parts font deux
+    /// chacun et deux oubliés. C'est assumé — un ou deux items qui restent valent mieux qu'un
+    /// diviseur qui changerait d'un personnage à l'autre sans être écrit nulle part.
     ///
-    /// La division entière ne donne jamais plus que le stock, ce qui est le bon sens du refus :
-    /// mieux vaut laisser un item au coffre que réclamer ce qui n'y est pas.
+    /// Et la division entière ne réclame jamais plus qu'il n'y a, ce qui est le bon sens du
+    /// refus : mieux vaut laisser un item que demander ce qui n'existe pas.
     /// </summary>
-    public static int Share(int stock, int remainingCharacters)
+    public static int Share(int stock, int parts)
     {
-        if (stock <= 0 || remainingCharacters <= 0) return 0;
-        return stock / remainingCharacters;
+        if (stock <= 0 || parts <= 0) return 0;
+        return stock / parts;
     }
 }

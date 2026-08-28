@@ -27,33 +27,52 @@ public class ChestDistributionTests
     // ---------------------------------------------------------------- La lecture
 
     [Fact]
-    public async Task Une_quantite_lue_est_divisee_puis_recollee()
+    public async Task Le_diviseur_ne_bouge_pas_d_un_personnage_a_l_autre()
     {
+        // Le test qui verrouille la demande. Le stock diminue à mesure que chacun se sert —
+        // 100, puis 75, 50, 25 — et pourtant la part ne bouge pas : elle est calculée à la
+        // première lecture puis reprise. Rediviser le stock restant à chaque tour donnerait
+        // 25, 18, 12, 6, et laisserait un tiers du coffre derrière.
         var (windows, roster, profile) = MacroHarness.BuildTeam("Un", "Deux", "Trois", "Quatre");
-        var clipboard = new FakeClipboard { AnswerOnCopy = "100" };
+        var clipboard = new FakeClipboard();
+        foreach (string reste in new[] { "100", "75", "50", "25" }) clipboard.Answers.Enqueue(reste);
 
-        await MacroHarness.RunAsync(RepartitionDe(new DistributeQuantityStep()), windows, roster, profile,
+        await MacroHarness.RunAsync(
+            RepartitionDe(new DistributeQuantityStep { Divisor = 4 }), windows, roster, profile,
             clipboard: clipboard);
 
-        // Quatre personnages : 100/4, puis le stock n'ayant pas bougé dans ce faux, 100/3, 100/2, 100/1.
-        // Ce qui compte ici est que la division suive le nombre de personnages restants.
-        Assert.Equal(["25", "33", "50", "100"], clipboard.Written);
+        Assert.Equal(["25", "25", "25", "25"], clipboard.Written);
     }
 
     [Fact]
-    public async Task Le_stock_qui_diminue_se_repartit_en_entier()
+    public async Task Ce_qui_ne_tombe_pas_juste_reste_au_coffre()
     {
-        // Le cas réel : chaque personnage relit ce qu'il reste au coffre. Dix items sur quatre
-        // donnent 2, 2, 3, 3 — dix distribués, rien d'abandonné. Un quart figé aurait donné
-        // 2, 2, 2, 2 et laissé deux items derrière.
+        // Dix items en quatre parts : deux chacun, et deux restent. C'est assumé.
         var (windows, roster, profile) = MacroHarness.BuildTeam("Un", "Deux", "Trois", "Quatre");
         var clipboard = new FakeClipboard();
-        foreach (string reste in new[] { "10", "8", "6", "3" }) clipboard.Answers.Enqueue(reste);
+        foreach (string reste in new[] { "10", "8", "6", "4" }) clipboard.Answers.Enqueue(reste);
 
-        await MacroHarness.RunAsync(RepartitionDe(new DistributeQuantityStep()), windows, roster, profile,
+        await MacroHarness.RunAsync(
+            RepartitionDe(new DistributeQuantityStep { Divisor = 4 }), windows, roster, profile,
             clipboard: clipboard);
 
-        Assert.Equal(["2", "2", "3", "3"], clipboard.Written);
+        Assert.Equal(["2", "2", "2", "2"], clipboard.Written);
+    }
+
+    [Fact]
+    public async Task On_ne_reclame_jamais_plus_qu_il_n_y_a()
+    {
+        // Un diviseur plus petit que l'équipe, ou un coffre déjà entamé : la part mémorisée
+        // dépasse ce qui reste, et c'est ce qui reste qui est pris.
+        var (windows, roster, profile) = MacroHarness.BuildTeam("Un", "Deux", "Trois");
+        var clipboard = new FakeClipboard();
+        foreach (string reste in new[] { "100", "50", "10" }) clipboard.Answers.Enqueue(reste);
+
+        await MacroHarness.RunAsync(
+            RepartitionDe(new DistributeQuantityStep { Divisor = 2 }), windows, roster, profile,
+            clipboard: clipboard);
+
+        Assert.Equal(["50", "50", "10"], clipboard.Written);
     }
 
     [Fact]
@@ -79,7 +98,8 @@ public class ChestDistributionTests
         var (windows, roster, profile) = MacroHarness.BuildTeam("Un", "Deux");
         var clipboard = new FakeClipboard("9999") { AnswerOnCopy = null };
 
-        var result = await RunRawAsync(RepartitionDe(new DistributeQuantityStep()), windows, roster, profile, clipboard);
+        var result = await RunRawAsync(
+            RepartitionDe(new DistributeQuantityStep()), windows, roster, profile, clipboard);
 
         Assert.Equal(MacroOutcome.Failed, result.Outcome);
         Assert.Empty(clipboard.Written);
@@ -95,30 +115,18 @@ public class ChestDistributionTests
         var (windows, roster, profile) = MacroHarness.BuildTeam("Un", "Deux");
         var clipboard = new FakeClipboard { AnswerOnCopy = copie };
 
-        var result = await RunRawAsync(RepartitionDe(new DistributeQuantityStep()), windows, roster, profile, clipboard);
-
-        Assert.Equal(MacroOutcome.Failed, result.Outcome);
-        Assert.Empty(clipboard.Written);
-    }
-
-    [Fact]
-    public async Task Hors_d_une_boucle_la_repartition_echoue_plutot_que_de_deviner()
-    {
-        // Sans boucle, il n'y a personne à servir : diviser par un reste oublié donnerait
-        // n'importe quoi. Mieux vaut le dire à l'auteur de la macro.
-        var (windows, roster, profile) = MacroHarness.BuildTeam("Un");
-        var clipboard = new FakeClipboard { AnswerOnCopy = "100" };
-
         var result = await RunRawAsync(
-            MacroHarness.MacroOf(new DistributeQuantityStep()), windows, roster, profile, clipboard);
+            RepartitionDe(new DistributeQuantityStep()), windows, roster, profile, clipboard);
 
         Assert.Equal(MacroOutcome.Failed, result.Outcome);
         Assert.Empty(clipboard.Written);
     }
 
     [Fact]
-    public async Task Un_diviseur_explicite_se_passe_de_boucle()
+    public async Task Une_repartition_se_passe_de_boucle()
     {
+        // Un diviseur écrit dans l'étape ne dépend de rien d'autre : l'étape est utilisable
+        // seule, ce que l'ancien diviseur déduit de la boucle interdisait.
         var (windows, roster, profile) = MacroHarness.BuildTeam("Un");
         var clipboard = new FakeClipboard { AnswerOnCopy = "100" };
 
@@ -132,17 +140,16 @@ public class ChestDistributionTests
     [Fact]
     public async Task Une_part_nulle_referme_la_boite_sans_rien_ecrire()
     {
-        // Trois items pour quatre personnages : taper zéro ferait n'importe quoi selon le jeu.
-        var (windows, roster, profile) = MacroHarness.BuildTeam("Un", "Deux", "Trois", "Quatre");
-        var clipboard = new FakeClipboard();
-        foreach (string reste in new[] { "3", "3", "3", "3" }) clipboard.Answers.Enqueue(reste);
+        // Trois items en quatre parts : la part vaut zéro, et taper zéro ferait n'importe
+        // quoi selon le jeu.
+        var (windows, roster, profile) = MacroHarness.BuildTeam("Un", "Deux");
+        var clipboard = new FakeClipboard { AnswerOnCopy = "3" };
 
-        var actions = await MacroHarness.RunAsync(RepartitionDe(new DistributeQuantityStep()), windows, roster,
-            profile, clipboard: clipboard);
+        var actions = await MacroHarness.RunAsync(
+            RepartitionDe(new DistributeQuantityStep { Divisor = 4 }), windows, roster, profile,
+            clipboard: clipboard);
 
-        // Le premier n'a rien (3/4), les suivants se partagent : 3/3, puis le faux rend
-        // toujours 3, donc 3/2 puis 3/1.
-        Assert.Equal(["1", "1", "3"], clipboard.Written);
+        Assert.Empty(clipboard.Written);
         Assert.Contains(actions, a => a is RecordedAction.Key(VirtualKeys.Escape, KeyModifiers.None, _));
     }
 
@@ -180,6 +187,17 @@ public class ChestDistributionTests
             s => Assert.Equal(Depot, Assert.IsType<MouseDragStep>(s).Destination),
             s => Assert.IsType<DistributeQuantityStep>(s),
             s => Assert.Equal(VirtualKeys.Escape, Assert.IsType<KeyStep>(s).VirtualKey));
+    }
+
+    [Fact]
+    public void Le_diviseur_demande_se_retrouve_sur_chaque_etape()
+    {
+        var items = new List<NormalizedPoint> { new(0.1, 0.1), new(0.2, 0.2) };
+
+        var loop = Assert.IsType<ForEachCharacterStep>(
+            Assert.Single(ChestDistribution.BuildMacro(Coffre, Depot, items, divisor: 6).Steps));
+
+        Assert.All(loop.Steps.OfType<DistributeQuantityStep>(), step => Assert.Equal(6, step.Divisor));
     }
 
     [Fact]
