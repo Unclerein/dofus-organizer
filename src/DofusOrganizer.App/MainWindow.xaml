@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:DofusOrganizer.App.ViewModels"
         xmlns:models="clr-namespace:DofusOrganizer.Core.Models;assembly=DofusOrganizer.Core"
+        xmlns:views="clr-namespace:DofusOrganizer.App.Views"
         Title="Dofus Organizer" Height="680" Width="1000" MinHeight="520" MinWidth="820"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource Parchment}" Foreground="{StaticResource Ink}"
@@ -45,6 +46,7 @@
           </TextBlock>
 
           <DataGrid Grid.Row="1" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
+                    views:DragReorder.Command="{Binding ReorderCharactersCommand}"
                     AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                     HeadersVisibility="Column" GridLinesVisibility="Horizontal" RowHeaderWidth="0"
                     SelectionMode="Single">
@@ -146,20 +148,30 @@
               <TextBlock Text="Étapes" Style="{StaticResource SectionHeader}" />
             </StackPanel>
 
-            <ListBox Grid.Row="1" ItemsSource="{Binding Steps}" SelectedItem="{Binding SelectedStep}">
+            <!--
+              Une ligne par étape, sous-étapes comprises et sélectionnables. Elles étaient
+              auparavant dessinées par une liste imbriquée en lecture seule : tout ce qui vivait
+              dans une boucle échappait à la sélection, donc aux boutons Monter, Descendre,
+              Supprimer et Ajouter — alors que le modèle savait les traiter depuis toujours.
+            -->
+            <ListBox Grid.Row="1" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+                     views:DragReorder.Command="{Binding DataContext.ReorderStepsCommand, RelativeSource={RelativeSource AncestorType=Window}}">
               <ListBox.ItemTemplate>
                 <DataTemplate>
-                  <StackPanel>
-                    <TextBlock Text="{Binding Description}" />
-                    <!-- Les sous-étapes d'une boucle sont montrées en retrait pour rendre la structure lisible -->
-                    <ItemsControl ItemsSource="{Binding Steps}" Margin="18,2,0,0">
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                          <TextBlock Text="{Binding Description}" Style="{StaticResource Secondary}" />
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                  </StackPanel>
+                  <TextBlock Text="{Binding Step.Description}">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock">
+                        <Style.Triggers>
+                          <!-- Le retrait dit l'appartenance à la boucle ; l'imbrication ne va pas plus loin. -->
+                          <DataTrigger Binding="{Binding Depth}" Value="1">
+                            <Setter Property="Margin" Value="22,0,0,0" />
+                            <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+                            <Setter Property="FontSize" Value="11.5" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
                 </DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>
@@ -281,7 +293,10 @@
                     <StackPanel>
                       <StackPanel Orientation="Horizontal">
                         <TextBlock Text="Diviser par" VerticalAlignment="Center" Margin="0,0,6,0" />
-                        <TextBox Text="{Binding Divisor, UpdateSourceTrigger=LostFocus}" Width="60" />
+                        <TextBox Text="{Binding Divisor, UpdateSourceTrigger=LostFocus}" Width="60" Margin="0,0,16,0" />
+                        <TextBlock Text="Attendre l'ouverture (ms)" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBox Text="{Binding OpenDelayMs, UpdateSourceTrigger=LostFocus}" Width="60"
+                                 ToolTip="Temps laissé à la boîte de quantité pour s'ouvrir avant de copier. Trop court, la copie ne rapporte rien et la macro s'arrête. À monter si un client est lent." />
                       </StackPanel>
                       <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0">
                         La part est calculée à la première lecture et reprise pour les personnages

@@ -216,6 +216,11 @@ public sealed class MacroRunner(
                 "Répartir une quantité demande le presse-papiers, dont ce moteur ne dispose pas.");
         }
 
+        // Le glisser qui précède vient d'ouvrir la boîte de quantité, et ouvrir prend du temps.
+        // Copier avant qu'elle n'existe ne rapporte rien, et l'étape s'arrête alors sur un
+        // presse-papiers vide.
+        await clock.DelayAsync(step.OpenDelayMs, ct).ConfigureAwait(false);
+
         clipboard.Clear();
         input.SendKey(VirtualKeys.C, KeyModifiers.Control, KeyAction.Press, settings.UseScanCodes);
 

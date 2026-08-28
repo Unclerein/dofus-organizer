@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Windows;
 using DofusOrganizer.App.Services;
+using DofusOrganizer.App.Views;
 using DofusOrganizer.Core.Config;
 using DofusOrganizer.Core.Geometry;
 using DofusOrganizer.Core.Models;
@@ -68,6 +69,12 @@ public sealed class MainViewModel : ObservableObject
         PointStepCommand = new RelayCommand(
             async target => await PointStepAsync(target as string),
             _ => SelectedMacro?.SelectedStep is PointerStep);
+
+        // Le glisser-déposer ne décide de rien : il dit « de cette ligne vers celle-là », et
+        // c'est le modèle qui refuse ce qui n'a pas de sens — franchir la frontière d'une boucle,
+        // par exemple.
+        ReorderStepsCommand = new RelayCommand(move => ReorderSteps(move as DragReorder.Move?));
+        ReorderCharactersCommand = new RelayCommand(move => ReorderCharacters(move as DragReorder.Move?));
 
         ToggleDesignationCommand = new RelayCommand(ToggleDesignation);
         ClearChestPointsCommand = new RelayCommand(ClearChestPoints, () => _chestPoints.Count > 0);
@@ -198,6 +205,8 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand ForgetCharacterCommand { get; }
     public RelayCommand ForgetAbsentCharactersCommand { get; }
     public RelayCommand PointStepCommand { get; }
+    public RelayCommand ReorderStepsCommand { get; }
+    public RelayCommand ReorderCharactersCommand { get; }
     public RelayCommand ToggleDesignationCommand { get; }
     public RelayCommand ClearChestPointsCommand { get; }
     public RelayCommand BuildChestMacroCommand { get; }
@@ -312,6 +321,28 @@ public sealed class MainViewModel : ObservableObject
                 ? $"{waiting} — si cela dure, vérifiez le motif du titre dans les Réglages"
                 : $"{named}, {waiting}";
         }
+    }
+
+    private void ReorderSteps(DragReorder.Move? move)
+    {
+        if (move is not { } m || SelectedMacro is null) return;
+        if (SelectedMacro.Reorder(m.From, m.To)) _service.Save();
+    }
+
+    /// <summary>
+    /// Réordonne les personnages, en passant par le même chemin que Monter et Descendre :
+    /// l'ordre vit dans le profil, et c'est lui que suit la touche « personnage suivant ».
+    /// </summary>
+    private void ReorderCharacters(DragReorder.Move? move)
+    {
+        if (move is not { } m) return;
+
+        var rows = Characters;
+        if (m.From < 0 || m.From >= rows.Count || m.To < 0 || m.To >= rows.Count || m.From == m.To) return;
+
+        _service.Roster.Move(rows[m.From].Slot, m.To - m.From, Profile.Characters);
+        _service.Refresh();
+        _service.Save();
     }
 
     private void MoveCharacter(int delta)

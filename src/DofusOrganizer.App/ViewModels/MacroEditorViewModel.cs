@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using DofusOrganizer.Core.Macros;
 using DofusOrganizer.Core.Models;
 
 namespace DofusOrganizer.App.ViewModels;
@@ -15,12 +17,24 @@ public sealed class MacroEditorViewModel : ObservableObject
     public MacroEditorViewModel(Macro macro)
     {
         Macro = macro;
-        Steps.CollectionChanged += (_, _) => Raise(nameof(StepCount));
+        Steps.CollectionChanged += (_, _) => { Raise(nameof(StepCount)); RebuildRows(); };
+        RebuildRows();
     }
 
     public Macro Macro { get; }
 
     public ObservableCollection<MacroStep> Steps => Macro.Steps;
+
+    /// <summary>
+    /// La macro à plat, une ligne par étape, sous-étapes comprises.
+    ///
+    /// L'éditeur ne montrait auparavant que les étapes de premier niveau : le contenu d'une
+    /// boucle était dessiné par une liste imbriquée en lecture seule, donc impossible à
+    /// sélectionner. Comme tout ce que produit la répartition du coffre vit dans une boucle,
+    /// plus rien n'y était ni déplaçable, ni supprimable, ni insérable ailleurs qu'à la fin —
+    /// alors que le modèle savait le faire depuis toujours.
+    /// </summary>
+    public ObservableCollection<OutlinedStep> Rows { get; } = [];
 
     public int StepCount => Steps.Count;
 
@@ -32,11 +46,70 @@ public sealed class MacroEditorViewModel : ObservableObject
             if (!Set(ref _selectedStep, value)) return;
             Raise(nameof(HasSelection));
             Raise(nameof(SelectedIndex));
+            Raise(nameof(SelectedRow));
         }
+    }
+
+    /// <summary>
+    /// La ligne de l'étape sélectionnée, pour la liste de l'interface.
+    ///
+    /// La sélection reste portée par l'étape et non par la ligne : les lignes sont reconstruites
+    /// à chaque changement, et une sélection accrochée à l'une d'elles se perdrait au premier
+    /// ajout.
+    /// </summary>
+    public OutlinedStep? SelectedRow
+    {
+        get
+        {
+            foreach (var row in Rows)
+            {
+                if (ReferenceEquals(row.Step, _selectedStep)) return row;
+            }
+            return null;
+        }
+        set => SelectedStep = value?.Step;
+    }
+
+    /// <summary>
+    /// Reconstruit les lignes, et se réabonne aux boucles.
+    ///
+    /// Le réabonnement compte autant que la reconstruction : une étape ajoutée dans une boucle
+    /// ne touche pas la liste de la macro, donc seule la collection de la boucle le signale.
+    /// </summary>
+    private void RebuildRows()
+    {
+        foreach (var loop in _watched) loop.Steps.CollectionChanged -= OnLoopChanged;
+        _watched.Clear();
+
+        foreach (var loop in Steps.OfType<ForEachCharacterStep>())
+        {
+            loop.Steps.CollectionChanged += OnLoopChanged;
+            _watched.Add(loop);
+        }
+
+        Rows.Clear();
+        foreach (var row in MacroOutline.Flatten(Steps)) Rows.Add(row);
+
+        Raise(nameof(SelectedRow));
+        Raise(nameof(SelectedIndex));
+    }
+
+    private void OnLoopChanged(object? sender, NotifyCollectionChangedEventArgs e) => RebuildRows();
+
+    private readonly List<ForEachCharacterStep> _watched = [];
+
+    /// <summary>Déplace l'étape d'une ligne vers une autre, sans jamais franchir une boucle.</summary>
+    public bool Reorder(int from, int to)
+    {
+        if (!MacroOutline.Reorder(Steps, from, to)) return false;
+
+        RebuildRows();
+        return true;
     }
 
     public bool HasSelection => _selectedStep is not null;
 
+    /// <summary>Position de l'étape sélectionnée dans sa propre liste, ou -1.</summary>
     public int SelectedIndex => _selectedStep is null ? -1 : Steps.IndexOf(_selectedStep);
 
     /// <summary>
@@ -139,6 +212,7 @@ public sealed class MacroEditorViewModel : ObservableObject
     {
         Steps.Clear();
         foreach (var step in steps) Steps.Add(step);
+        RebuildRows();
         SelectedStep = Steps.FirstOrDefault();
     }
 

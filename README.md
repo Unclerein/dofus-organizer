@@ -90,6 +90,19 @@ la macro reste juste si vous déplacez ou redimensionnez vos clients ensuite. El
 revanche que l'interface soit dans le même état chez tout le monde — c'est à vous d'y veiller,
 l'outil rejoue des positions, il ne regarde pas l'écran.
 
+### Réordonner et modifier les étapes
+
+La liste montre une ligne par étape, **sous-étapes d'une boucle comprises**, en retrait. Elles
+se sélectionnent comme les autres : Monter, Descendre, Supprimer et Ajouter s'appliquent à
+l'intérieur de la boucle, et une étape ajoutée se range juste après celle qui est sélectionnée
+plutôt qu'à la fin.
+
+Les lignes se **déplacent aussi à la souris**, dans la liste d'étapes comme dans le tableau des
+personnages. Un glisser ne franchit jamais la frontière d'une boucle : en sortir changerait
+*quand* l'étape s'exécute — une fois au lieu d'une fois par personnage — et cela ne doit pas
+tenir à la précision d'un lâcher de souris. C'est la même règle que Monter et Descendre, qui
+s'arrêtent aux bornes de la boucle.
+
 ### Corriger une position sans la taper
 
 Les étapes qui visent un point — clic, déplacement, molette, glisser-déposer — ont un bouton
@@ -218,6 +231,10 @@ reste actif pendant tout le rejeu.
 
 Si les glissers partent dans le vide, c'est que le coffre n'était pas encore ouvert : montez
 l'attente qui suit le clic du coffre, visible comme une étape ordinaire dans l'éditeur.
+
+Si la macro s'arrête sur « aucune quantité copiée », c'est que la boîte de quantité n'était pas
+encore là au moment du copier : montez **« Attendre l'ouverture »** dans le panneau de l'étape
+de répartition. Cent millisecondes suffisent en général.
 
 ## Aligner un panneau identiquement sur tous les personnages
 

@@ -300,7 +300,11 @@ public sealed class DistributeQuantityStep : MacroStep
     /// <summary>Un par personnage d'une équipe ordinaire.</summary>
     public const int DefaultDivisor = 4;
 
+    /// <summary>Le temps qu'une boîte de quantité met à s'ouvrir, sur un client ordinaire.</summary>
+    public const int DefaultOpenDelayMs = 100;
+
     private int _divisor = DefaultDivisor;
+    private int _openDelayMs = DefaultOpenDelayMs;
 
     /// <summary>
     /// Par combien diviser la quantité lue.
@@ -316,6 +320,24 @@ public sealed class DistributeQuantityStep : MacroStep
     {
         get => _divisor;
         set { if (Set(ref _divisor, Math.Max(1, value))) RaiseDescription(); }
+    }
+
+    /// <summary>
+    /// Attente avant de copier, le temps que la boîte de quantité s'ouvre.
+    ///
+    /// Sans elle le Ctrl+C part avant que la boîte n'existe : il ne copie rien, et l'étape
+    /// s'arrête à juste titre plutôt que de coller un nombre venu d'ailleurs. C'est ce qui
+    /// faisait échouer une répartition au premier item.
+    ///
+    /// Portée par l'étape et non par une attente voisine : elle fait partie du geste que
+    /// l'étape exécute d'un bloc, et une étape d'attente séparée se supprimerait par mégarde
+    /// en cassant celle qui la suit. Réglable, parce que cent millisecondes sont une
+    /// supposition sur la vitesse d'un client.
+    /// </summary>
+    public int OpenDelayMs
+    {
+        get => _openDelayMs;
+        set => Set(ref _openDelayMs, Math.Clamp(value, 0, 5000));
     }
 
     public override string Description => $"Répartir la quantité proposée (diviser par {Divisor})";

@@ -128,6 +128,8 @@ public partial class App : Application
         model.MoveStepDownCommand.Execute(null);
         model.RemoveStepCommand.Execute(null);
 
+        ExerciseLoopEditing(model);
+
         // Ajout puis suppression d'une touche lente : le panneau se lie à la sélection, et une
         // liste vidée est précisément le cas où une liaison mal écrite se voit.
         model.AddSlowKeyCommand.Execute(null);
@@ -156,6 +158,44 @@ public partial class App : Application
     /// onglet non sélectionné n'est jamais réalisé tant qu'on ne l'a pas montré, d'où le
     /// passage par chacun.
     /// </summary>
+    /// <summary>
+    /// Éditer à l'intérieur d'une boucle : ajouter, sélectionner, déplacer.
+    ///
+    /// Ce chemin était mort. Les sous-étapes étaient dessinées par une liste imbriquée en
+    /// lecture seule, donc jamais sélectionnées — et tout ce que produit la répartition du
+    /// coffre vit dans une boucle. Le modèle savait pourtant les traiter depuis toujours ;
+    /// personne ne pouvait le lui demander.
+    /// </summary>
+    private static void ExerciseLoopEditing(MainViewModel model)
+    {
+        var editor = model.SelectedMacro;
+        if (editor?.FindLoop() is not { } loop) return;
+
+        editor.SelectedStep = loop;
+
+        model.NewStepKind = StepKind.Attente;
+        model.AddStepCommand.Execute(null);
+
+        model.NewStepKind = StepKind.Touche;
+        model.AddStepCommand.Execute(null);
+
+        if (!editor.Rows.Any(row => row.Depth > 0))
+        {
+            throw new InvalidOperationException(
+                "Les sous-étapes d'une boucle n'apparaissent pas dans la liste de l'éditeur.");
+        }
+
+        if (editor.SelectedStep is null || !loop.Steps.Contains(editor.SelectedStep))
+        {
+            throw new InvalidOperationException(
+                "Une étape ajoutée dans une boucle n'y est pas sélectionnée.");
+        }
+
+        // Déplacer à l'intérieur de la boucle, puis par le même chemin que le glisser-déposer.
+        model.MoveStepUpCommand.Execute(null);
+        editor.Reorder(editor.Rows.Count - 1, editor.Rows.Count - 2);
+    }
+
     private static void ExerciseLayout(MainWindow window)
     {
         if (window.Content is not FrameworkElement content) return;
