@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Reflection;
 using System.Windows;
 using DofusOrganizer.App.Services;
 using DofusOrganizer.Core.Config;
@@ -727,22 +728,31 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Les commandes du modèle, lues sur le type et non recopiées à la main.
+    ///
+    /// La liste était écrite en dur, et trois commandes ajoutées après coup n'y ont pas été
+    /// portées. Rien n'a levé : une commande jamais prévenue n'est pas interrogée à nouveau,
+    /// donc son bouton garde la disponibilité qu'il avait à la liaison — gris pour toujours si
+    /// sa condition n'était pas remplie à ce moment-là. L'oubli ne se voit d'ailleurs que sur
+    /// les commandes qui ont une condition ; les autres restent actives et masquent le
+    /// problème. Le lire sur le type rend cet oubli impossible.
+    /// </summary>
+    private static readonly PropertyInfo[] CommandProperties =
+        typeof(MainViewModel)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(property => property.PropertyType == typeof(RelayCommand))
+            .ToArray();
+
     private void RefreshCommands()
     {
-        // Les éléments nuls sont tolérés : cette méthode est déclenchée par les
-        // accesseurs de sélection, qui peuvent être atteints avant la fin du
-        // constructeur. Planter là rendrait l'application impossible à ouvrir.
-        RelayCommand?[] commands =
-        [
-            MoveCharacterUpCommand, MoveCharacterDownCommand, AssignCharacterHotkeyCommand,
-            ClearCharacterHotkeyCommand, FocusCharacterCommand, ForgetCharacterCommand,
-            DeleteMacroCommand, AssignMacroHotkeyCommand, ClearMacroHotkeyCommand,
-            RunMacroCommand, StopMacroCommand, AddStepCommand, RemoveStepCommand,
-            MoveStepUpCommand, MoveStepDownCommand, ToggleRecordingCommand,
-            DeleteSlowKeyCommand, AssignSlowKeyCommand,
-        ];
-
-        foreach (var command in commands) command?.RaiseCanExecuteChanged();
+        // Les valeurs nulles sont tolérées : cette méthode est déclenchée par les accesseurs
+        // de sélection, qui peuvent être atteints avant la fin du constructeur. Planter là
+        // rendrait l'application impossible à ouvrir.
+        foreach (var property in CommandProperties)
+        {
+            (property.GetValue(this) as RelayCommand)?.RaiseCanExecuteChanged();
+        }
     }
 }
 

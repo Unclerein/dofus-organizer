@@ -325,74 +325,64 @@
 
       <!-- ============ Coffre ============ -->
       <TabItem Header="Coffre">
-        <Grid Margin="14">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" MaxWidth="560" />
-            <ColumnDefinition Width="320" />
-          </Grid.ColumnDefinitions>
+        <!--
+          Ascenseur comme dans Réglages : c'est le seul autre onglet dont le contenu n'est pas
+          borné par une grille. Sans lui, une fenêtre à sa taille par défaut coupait le bas du
+          panneau — et le bouton de construction avec, sans moyen d'y descendre.
+        -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <Grid Margin="14">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" MaxWidth="560" />
+              <ColumnDefinition Width="320" />
+            </Grid.ColumnDefinitions>
 
-          <StackPanel Grid.Column="0" Margin="0,0,16,0">
-            <TextBlock Text="Répartir le coffre sur l'équipe" Style="{StaticResource SectionHeader}" Margin="0,0,0,6" />
-            <TextBlock Style="{StaticResource Hint}">
-              Le meneur dépose tout au coffre, puis chaque personnage vient prendre sa part.
-              La macro lit la quantité que le jeu propose, la divise, et pose le résultat.
-              Cent items en quatre parts : chacun repart avec vingt-cinq. Ce qui ne tombe pas
-              juste reste au coffre.
-            </TextBlock>
+            <StackPanel Grid.Column="0" Margin="0,0,16,0">
+              <TextBlock Text="Répartir le coffre sur l'équipe" Style="{StaticResource SectionHeader}" Margin="0,0,0,6" />
+              <TextBlock Style="{StaticResource Hint}">
+                Le meneur dépose tout au coffre, puis chaque personnage vient prendre sa part.
+                La macro lit la quantité proposée par le jeu, la divise, et pose le résultat.
+              </TextBlock>
 
-            <TextBlock Text="1. Placez tous les personnages devant le coffre" Style="{StaticResource SectionHeader}" />
-            <TextBlock Style="{StaticResource Hint}">
-              Ils doivent tous pouvoir l'ouvrir sans se déplacer : la macro clique au même
-              endroit sur chacun.
-            </TextBlock>
+              <TextBlock Text="1. Placez les personnages devant le coffre"
+                         Style="{StaticResource SectionHeader}"
+                         ToolTip="Ils doivent tous pouvoir l'ouvrir sans se déplacer : la macro clique au même endroit sur chacun." />
 
-            <TextBlock Text="2. Désignez les points, dans l'ordre" Style="{StaticResource SectionHeader}" />
-            <TextBlock Style="{StaticResource Hint}">
-              D'abord le coffre, puis la case où les items doivent arriver dans votre inventaire,
-              puis chaque item à répartir. Pendant la désignation vos clics ne parviennent pas au
-              jeu — aucune boîte de quantité ne s'ouvre.
-            </TextBlock>
-            <TextBlock Style="{StaticResource Hint}">
-              Désignez les items dans l'ordre du coffre, du premier au dernier : la macro les
-              traitera à l'envers. C'est voulu — quand une pile se vide, les items qui la
-              suivaient remontent d'une case, et commencer par la fin met ce décalage derrière
-              ce qu'il reste à faire.
-            </TextBlock>
+              <TextBlock Text="2. Désignez les points" Style="{StaticResource SectionHeader}" />
+              <TextBlock Style="{StaticResource Hint}">
+                Le coffre, puis la case d'arrivée dans votre inventaire, puis les items — dans
+                l'ordre du coffre. Vos clics ne parviennent pas au jeu pendant la désignation.
+              </TextBlock>
 
-            <WrapPanel Margin="0,10,0,0">
-              <Button Content="{Binding DesignationLabel}" Command="{Binding ToggleDesignationCommand}"
-                      MinWidth="200" Style="{StaticResource GoldButton}" />
-              <Button Content="Effacer" Command="{Binding ClearChestPointsCommand}" MinWidth="100" />
-            </WrapPanel>
+              <WrapPanel Margin="0,8,0,0">
+                <Button Content="{Binding DesignationLabel}" Command="{Binding ToggleDesignationCommand}"
+                        MinWidth="200" Style="{StaticResource GoldButton}"
+                        ToolTip="La macro traite les items à l'envers de l'ordre où vous les désignez. C'est voulu : quand une pile se vide, les items qui la suivaient remontent d'une case, et commencer par la fin met ce décalage derrière ce qu'il reste à faire." />
+                <Button Content="Effacer" Command="{Binding ClearChestPointsCommand}" MinWidth="100" />
+              </WrapPanel>
 
-            <TextBlock Text="3. Construisez la macro" Style="{StaticResource SectionHeader}" />
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-              <TextBlock Text="Diviser chaque pile en" VerticalAlignment="Center" Margin="0,0,6,0" />
-              <TextBox Text="{Binding ChestDivisor, UpdateSourceTrigger=LostFocus}" Width="50" />
-              <TextBlock Text="parts" VerticalAlignment="Center" Margin="6,0,0,0" />
+              <TextBlock Text="3. Construisez la macro" Style="{StaticResource SectionHeader}" />
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,8"
+                          ToolTip="La part est calculée à la première lecture puis reprise pour les autres personnages : le coffre se vide à mesure que chacun se sert, et rediviser ce qu'il reste donnerait au deuxième un quart de ce que le premier a laissé. Une part de plus qu'il n'y a de personnages laisse une marge, si vous préférez qu'aucune pile ne se vide.">
+                <TextBlock Text="Diviser chaque pile en" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBox Text="{Binding ChestDivisor, UpdateSourceTrigger=LostFocus}" Width="50" />
+                <TextBlock Text="parts" VerticalAlignment="Center" Margin="6,0,0,0" />
+              </StackPanel>
+              <Button Content="Construire la macro" Command="{Binding BuildChestMacroCommand}"
+                      MinWidth="200" HorizontalAlignment="Left"
+                      ToolTip="La macro apparaît dans l'onglet Macros, modifiable comme les autres. Surveillez le premier passage : ce que la macro donne, le jeu ne le rend pas." />
+              <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0">
+                Surveillez le premier passage : ce que la macro donne, le jeu ne le rend pas.
+              </TextBlock>
             </StackPanel>
-            <TextBlock Style="{StaticResource Hint}">
-              La part est calculée à la première lecture, puis reprise pour les autres
-              personnages : le coffre se vide à mesure que chacun se sert, et rediviser ce qu'il
-              reste donnerait au deuxième un quart de ce que le premier a laissé.
-              Mettre une part de plus qu'il n'y a de personnages laisse une marge au coffre, si
-              vous préférez qu'aucune pile ne se vide complètement.
-            </TextBlock>
-            <TextBlock Style="{StaticResource Hint}">
-              La macro apparaît dans l'onglet Macros, modifiable comme les autres, et vous pouvez
-              lui assigner une touche. Surveillez le premier passage : ce que la macro donne, le
-              jeu ne le rend pas.
-            </TextBlock>
-            <Button Content="Construire la macro" Command="{Binding BuildChestMacroCommand}"
-                    MinWidth="200" HorizontalAlignment="Left" Margin="0,4,0,0" />
-          </StackPanel>
 
-          <DockPanel Grid.Column="1">
-            <TextBlock DockPanel.Dock="Top" Text="Points désignés" Style="{StaticResource SectionHeader}"
-                       Margin="0,0,0,6" />
-            <ListBox ItemsSource="{Binding ChestPoints}" />
-          </DockPanel>
-        </Grid>
+            <DockPanel Grid.Column="1" MinHeight="240">
+              <TextBlock DockPanel.Dock="Top" Text="Points désignés" Style="{StaticResource SectionHeader}"
+                         Margin="0,0,0,6" />
+              <ListBox ItemsSource="{Binding ChestPoints}" />
+            </DockPanel>
+          </Grid>
+        </ScrollViewer>
       </TabItem>
 
       <!-- ============ Réglages ============ -->
