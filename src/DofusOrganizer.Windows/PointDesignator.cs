@@ -28,8 +28,13 @@ public sealed class PointDesignator(IWindowManager windows, Func<nint, int> slot
     private readonly MouseHook _mouse = new();
     private readonly List<NormalizedPoint> _points = [];
 
+    private TaskCompletionSource<NormalizedPoint>? _capture;
+
     private bool _designating;
     private bool _swallowedPress;
+
+    /// <summary>Vrai pendant une capture à l'unité, qui se referme d'elle-même.</summary>
+    private bool _singleShot;
 
     public bool IsDesignating => _designating;
 
@@ -45,6 +50,7 @@ public sealed class PointDesignator(IWindowManager windows, Func<nint, int> slot
         _points.Clear();
         _swallowedPress = false;
         _designating = true;
+        _singleShot = false;
 
         _mouse.MouseEventReceived = OnMouse;
         _mouse.Install();
@@ -53,8 +59,36 @@ public sealed class PointDesignator(IWindowManager windows, Func<nint, int> slot
     public IReadOnlyList<NormalizedPoint> Stop()
     {
         _designating = false;
+        _singleShot = false;
+        _capture = null;
         _mouse.Uninstall();
         return _points.ToList();
+    }
+
+    /// <summary>
+    /// Recueille un seul point, puis s'arrête.
+    ///
+    /// Sert à renseigner la position d'une étape de macro depuis le jeu plutôt qu'en tapant des
+    /// pourcentages — personne ne sait à quel pourcentage correspond une case d'inventaire.
+    /// Même mécanique que la capture d'un raccourci dans <c>HotkeyDispatcher</c> : une promesse
+    /// que le premier événement utile dénoue, et qu'une annulation rompt.
+    /// </summary>
+    public Task<NormalizedPoint> CaptureNextAsync(CancellationToken cancellationToken)
+    {
+        var capture = new TaskCompletionSource<NormalizedPoint>(TaskCreationOptions.RunContinuationsAsynchronously);
+        cancellationToken.Register(() => capture.TrySetCanceled());
+
+        Start();
+        _capture = capture;
+        _singleShot = true;
+        return capture.Task;
+    }
+
+    /// <summary>Interrompt une capture en cours, sans rien rendre.</summary>
+    public void CancelCapture()
+    {
+        _capture?.TrySetCanceled();
+        if (_designating) Stop();
     }
 
     private bool OnMouse(MouseEvent e)
@@ -71,6 +105,11 @@ public sealed class PointDesignator(IWindowManager windows, Func<nint, int> slot
             // le jeu croire à un bouton resté enfoncé.
             bool swallow = _swallowedPress;
             _swallowedPress = false;
+
+            // Une capture à l'unité a été servie à l'appui : le relâchement avalé, il n'y a
+            // plus rien à écouter.
+            if (swallow && _singleShot) Stop();
+
             return swallow;
         }
 
@@ -82,10 +121,21 @@ public sealed class PointDesignator(IWindowManager windows, Func<nint, int> slot
         if (!windows.TryGetClientBounds(target, out var bounds) || bounds.IsEmpty) return false;
 
         var point = CoordinateMapper.ToNormalized(e.Point, bounds);
+        _swallowedPress = true;
+
+        // Une capture à l'unité se dénoue ici et rend la main. Le hook reste posé le temps
+        // d'avaler le relâchement qui suit : le retirer maintenant laisserait le jeu recevoir
+        // un bouton relâché qu'il n'a jamais vu s'enfoncer.
+        var capture = _capture;
+        if (capture is not null)
+        {
+            _capture = null;
+            capture.TrySetResult(point);
+            return true;
+        }
+
         _points.Add(point);
         PointDesignated?.Invoke(point);
-
-        _swallowedPress = true;
         return true;
     }
 

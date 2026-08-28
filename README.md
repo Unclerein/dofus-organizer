@@ -90,6 +90,18 @@ la macro reste juste si vous déplacez ou redimensionnez vos clients ensuite. El
 revanche que l'interface soit dans le même état chez tout le monde — c'est à vous d'y veiller,
 l'outil rejoue des positions, il ne regarde pas l'écran.
 
+### Corriger une position sans la taper
+
+Les étapes qui visent un point — clic, déplacement, molette, glisser-déposer — ont un bouton
+**Pointer**. Cliquez-le, puis cliquez l'endroit voulu dans le jeu : le clic n'y parvient pas,
+seule sa position est retenue et écrite dans l'étape. Le glisser-déposer en a deux, un par
+extrémité.
+
+C'est ce qui rend une étape ajoutée à la main utilisable : personne ne sait à quel pourcentage
+correspond une case d'inventaire, et les taper revient à les deviner puis à corriger. Montrez
+le point dans un client dont la disposition est celle du rejeu — la position est relative à la
+fenêtre cliquée. Le pointage s'annule tout seul au bout de vingt secondes.
+
 ## Téléporter toute l'équipe au même zaap
 
 Le problème : il y a des centaines de zaaps, donc écrire une macro par destination est

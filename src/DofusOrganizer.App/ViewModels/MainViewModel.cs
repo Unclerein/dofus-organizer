@@ -62,6 +62,12 @@ public sealed class MainViewModel : ObservableObject
         FocusCharacterCommand = new RelayCommand(FocusCharacter, () => SelectedCharacter?.IsPresent == true);
         ForgetCharacterCommand = new RelayCommand(ForgetCharacter, () => SelectedCharacter?.IsPresent == false);
         ForgetAbsentCharactersCommand = new RelayCommand(ForgetAbsentCharacters);
+        // Une seule commande pour les cinq boutons : le paramètre dit s'il s'agit du point de
+        // départ ou de celui d'arrivée d'un glisser.
+        PointStepCommand = new RelayCommand(
+            async target => await PointStepAsync(target as string),
+            _ => SelectedMacro?.SelectedStep is PointerStep);
+
         ToggleDesignationCommand = new RelayCommand(ToggleDesignation);
         ClearChestPointsCommand = new RelayCommand(ClearChestPoints, () => _chestPoints.Count > 0);
         BuildChestMacroCommand = new RelayCommand(
@@ -190,6 +196,7 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand FocusCharacterCommand { get; }
     public RelayCommand ForgetCharacterCommand { get; }
     public RelayCommand ForgetAbsentCharactersCommand { get; }
+    public RelayCommand PointStepCommand { get; }
     public RelayCommand ToggleDesignationCommand { get; }
     public RelayCommand ClearChestPointsCommand { get; }
     public RelayCommand BuildChestMacroCommand { get; }
@@ -660,6 +667,48 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>Attend la prochaine frappe pour en faire un raccourci. Échap annule.</summary>
+    /// <summary>
+    /// Remplit la position de l'étape sélectionnée avec l'endroit cliqué dans le jeu.
+    ///
+    /// Personne ne sait à quel pourcentage correspond une case d'inventaire : taper les
+    /// coordonnées à la main revient à les deviner puis à corriger. Le point est retenu
+    /// relativement à la fenêtre cliquée, il faut donc montrer l'endroit dans un client dont
+    /// la disposition est celle du rejeu.
+    /// </summary>
+    private async Task PointStepAsync(string? target)
+    {
+        if (SelectedMacro?.SelectedStep is not PointerStep step) return;
+
+        bool destination = target == "arrivée";
+        Status = destination
+            ? "Cliquez le point d'arrivée dans le jeu — le clic n'y parviendra pas."
+            : "Cliquez le point voulu dans le jeu — le clic n'y parviendra pas.";
+
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var point = await _service.CapturePointAsync(timeout.Token);
+
+            if (destination && step is MouseDragStep drag)
+            {
+                drag.ToFx = point.Fx;
+                drag.ToFy = point.Fy;
+            }
+            else
+            {
+                step.Fx = point.Fx;
+                step.Fy = point.Fy;
+            }
+
+            Status = $"Position relevée : {point.Fx * 100:0.#} % / {point.Fy * 100:0.#} %";
+        }
+        catch (OperationCanceledException)
+        {
+            _service.CancelPointCapture();
+            Status = "Pointage annulé.";
+        }
+    }
+
     private async Task<Hotkey?> CaptureAsync(string prompt)
     {
         Status = prompt + " — Échap pour annuler.";

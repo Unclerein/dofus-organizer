@@ -348,6 +348,29 @@ public sealed class OrganizerService : IDisposable, ILogSink
         Log("Désignation : cliquez le coffre, la case d'arrivée, puis les items.");
     }
 
+    /// <summary>
+    /// Attend un clic dans un client et rend sa position, sans que le jeu voie le clic.
+    ///
+    /// Sert à renseigner une étape de macro en montrant l'endroit plutôt qu'en tapant des
+    /// pourcentages. Les raccourcis dorment le temps de la capture, comme pour la désignation
+    /// et pour la même raison ; le réveil passe par un <c>finally</c>, sans quoi une annulation
+    /// les laisserait endormis et tout cesserait de répondre.
+    /// </summary>
+    public async Task<NormalizedPoint> CapturePointAsync(CancellationToken cancellationToken)
+    {
+        _dispatcher.Enabled = false;
+        try
+        {
+            return await Designator.CaptureNextAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _dispatcher.Enabled = true;
+        }
+    }
+
+    public void CancelPointCapture() => Designator.CancelCapture();
+
     public IReadOnlyList<NormalizedPoint> StopDesignating()
     {
         if (!Designator.IsDesignating) return [];

@@ -182,6 +182,10 @@
                       <TextBox Text="{Binding Fy, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="72" Margin="0,0,14,0" />
                       <TextBlock Text="Répétitions" VerticalAlignment="Center" Margin="0,0,6,0" />
                       <TextBox Text="{Binding Clicks, UpdateSourceTrigger=LostFocus}" Width="44" />
+                      <Button Content="Pointer"
+                              Command="{Binding DataContext.PointStepCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="départ" MinWidth="80" Margin="14,0,0,0"
+                              ToolTip="Cliquez ensuite l'endroit voulu dans le jeu : le clic n'y parviendra pas, seule sa position est retenue. Montrez-le dans un client dont la disposition est celle du rejeu — la position est relative à la fenêtre cliquée." />
                     </StackPanel>
                   </DataTemplate>
 
@@ -199,6 +203,14 @@
                       <TextBox Text="{Binding ToFy, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="66" Margin="0,0,14,0" />
                       <TextBlock Text="Étapes du trajet" VerticalAlignment="Center" Margin="0,0,6,0" />
                       <TextBox Text="{Binding IntermediateMoves, UpdateSourceTrigger=LostFocus}" Width="46" />
+                      <Button Content="Pointer le départ"
+                              Command="{Binding DataContext.PointStepCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="départ" MinWidth="80" Margin="14,0,0,0"
+                              ToolTip="Cliquez ensuite l'endroit voulu dans le jeu : le clic n'y parviendra pas, seule sa position est retenue. Montrez-le dans un client dont la disposition est celle du rejeu — la position est relative à la fenêtre cliquée." />
+                      <Button Content="Pointer l'arrivée"
+                              Command="{Binding DataContext.PointStepCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="arrivée" MinWidth="80" Margin="6,0,0,0"
+                              ToolTip="Cliquez ensuite l'endroit voulu dans le jeu : le clic n'y parviendra pas, seule sa position est retenue. Montrez-le dans un client dont la disposition est celle du rejeu — la position est relative à la fenêtre cliquée." />
                     </StackPanel>
                   </DataTemplate>
 
@@ -208,6 +220,10 @@
                       <TextBox Text="{Binding Fx, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="72" Margin="0,0,14,0" />
                       <TextBlock Text="Y" VerticalAlignment="Center" Margin="0,0,6,0" />
                       <TextBox Text="{Binding Fy, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="72" />
+                      <Button Content="Pointer"
+                              Command="{Binding DataContext.PointStepCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="départ" MinWidth="80" Margin="14,0,0,0"
+                              ToolTip="Cliquez ensuite l'endroit voulu dans le jeu : le clic n'y parviendra pas, seule sa position est retenue. Montrez-le dans un client dont la disposition est celle du rejeu — la position est relative à la fenêtre cliquée." />
                     </StackPanel>
                   </DataTemplate>
 
@@ -236,6 +252,10 @@
                       <TextBox Text="{Binding Fx, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="72" Margin="0,0,14,0" />
                       <TextBlock Text="Y %" VerticalAlignment="Center" Margin="0,0,6,0" />
                       <TextBox Text="{Binding Fy, StringFormat=F4, UpdateSourceTrigger=LostFocus}" Width="72" />
+                      <Button Content="Pointer"
+                              Command="{Binding DataContext.PointStepCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="départ" MinWidth="80" Margin="14,0,0,0"
+                              ToolTip="Cliquez ensuite l'endroit voulu dans le jeu : le clic n'y parviendra pas, seule sa position est retenue. Montrez-le dans un client dont la disposition est celle du rejeu — la position est relative à la fenêtre cliquée." />
                     </StackPanel>
                   </DataTemplate>
 
